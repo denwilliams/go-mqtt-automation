@@ -25,12 +25,16 @@
     // Your strategy code here
     // Access inputs with: context.inputs['topic/name']
     // Log messages with: context.log('message')
-    // Emit to other topics with: context.emit('topic/name', value)
     // Get current time with: context.getTime() or context.getISO()
-    
-    return null; // Return the processed value
+
+    // Emit to main topic
+    context.emit(processedValue);
+
+    // Emit to subtopics (optional)
+    // context.emit('/temperature', data.temp);
+    // context.emit('/humidity', data.humidity);
 }{{end}}</textarea>
-                <small>Write a JavaScript function called 'process' that takes a context parameter and returns a value</small>
+                <small>Write a JavaScript function called 'process' that takes a context parameter and uses context.emit() to output values</small>
             </div>
 
             <div class="form-group">
