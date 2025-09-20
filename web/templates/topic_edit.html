@@ -1,0 +1,96 @@
+{{define "topic-edit-content"}}
+<h2>{{if .IsNew}}Create New Topic{{else}}Edit Topic{{end}}</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <div class="form-group">
+                <label for="name">Topic Name *</label>
+                <input type="text" id="name" name="name" class="form-control" 
+                       {{if not .IsNew}}value="{{.Topic.Name}}" readonly{{end}} 
+                       placeholder="e.g., home/temperature/average" required>
+                <small>Use forward slashes to create hierarchical topic names</small>
+            </div>
+
+            <div class="form-group">
+                <label for="inputs">Input Topics</label>
+                <textarea id="inputs" name="inputs" class="form-control" rows="4" 
+                          placeholder="Enter one topic per line, e.g.:&#10;sensors/temperature/living-room&#10;sensors/temperature/bedroom">{{if not .IsNew}}{{range .Topic.GetInputs}}{{.}}
+{{end}}{{end}}</textarea>
+                <small>List the topics this internal topic should listen to (one per line)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="strategy_id">Strategy *</label>
+                <select id="strategy_id" name="strategy_id" class="form-control" required>
+                    <option value="">Select a strategy...</option>
+                    {{range .Strategies}}
+                    <option value="{{.ID}}" {{if and (not $.IsNew) (eq $.Topic.GetStrategyID .ID)}}selected{{end}}>
+                        {{.Name}} ({{.Language}})
+                    </option>
+                    {{end}}
+                </select>
+                <small>The strategy defines how this topic processes its inputs</small>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="emit_to_mqtt" {{if and (not .IsNew) .Topic.ShouldEmitToMQTT}}checked{{end}}>
+                    Emit to MQTT
+                </label>
+                <small>When checked, the topic's output will be published to the MQTT broker</small>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="noop_unchanged" {{if and (not .IsNew) .Topic.IsNoOpUnchanged}}checked{{end}}>
+                    Skip unchanged values
+                </label>
+                <small>When checked, the topic won't trigger if the output value hasn't changed</small>
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary">
+                    {{if .IsNew}}Create Topic{{else}}Update Topic{{end}}
+                </button>
+                <a href="/topics" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{if .Strategies}}
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3>Available Strategies</h3>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Language</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Strategies}}
+                <tr>
+                    <td><strong>{{.Name}}</strong></td>
+                    <td><span class="topic-type topic-type-system">{{.Language}}</span></td>
+                    <td>
+                        {{if gt (len .Code) 100}}
+                        {{slice .Code 0 100}}...
+                        {{else}}
+                        {{.Code}}
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        <p><a href="/strategies/new">Create a new strategy</a> if none of the above meet your needs.</p>
+    </div>
+</div>
+{{end}}
+{{end}}

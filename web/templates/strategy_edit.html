@@ -1,0 +1,108 @@
+{{define "strategy-edit-content"}}
+<h2>{{if .IsNew}}Create New Strategy{{else}}Edit Strategy{{end}}</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <div class="form-group">
+                <label for="name">Strategy Name *</label>
+                <input type="text" id="name" name="name" class="form-control" 
+                       value="{{if .Strategy}}{{.Strategy.Name}}{{end}}" 
+                       placeholder="e.g., Temperature Average" required>
+            </div>
+
+            <div class="form-group">
+                <label for="language">Language</label>
+                <select id="language" name="language" class="form-control">
+                    <option value="javascript" {{if and .Strategy (eq .Strategy.Language "javascript")}}selected{{end}}>JavaScript</option>
+                </select>
+                <small>Currently only JavaScript is supported</small>
+            </div>
+
+            <div class="form-group">
+                <label for="code">Strategy Code *</label>
+                <textarea id="code" name="code" class="form-control code-editor" required>{{if .Strategy}}{{.Strategy.Code}}{{else}}function process(context) {
+    // Your strategy code here
+    // Access inputs with: context.inputs['topic/name']
+    // Log messages with: context.log('message')
+    // Emit to other topics with: context.emit('topic/name', value)
+    // Get current time with: context.getTime() or context.getISO()
+    
+    return null; // Return the processed value
+}{{end}}</textarea>
+                <small>Write a JavaScript function called 'process' that takes a context parameter and returns a value</small>
+            </div>
+
+            <div class="form-group">
+                <label for="parameters">Parameters (JSON)</label>
+                <textarea id="parameters" name="parameters" class="form-control" rows="3"
+                          placeholder='{"threshold": 25, "enabled": true}'>{{if .Strategy}}{{toJSON .Strategy.Parameters}}{{else}}{}{{end}}</textarea>
+                <small>Optional parameters that will be available in context.parameters</small>
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary">
+                    {{if .IsNew}}Create Strategy{{else}}Update Strategy{{end}}
+                </button>
+                <a href="/strategies" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3>Context Object Reference</h3>
+    </div>
+    <div class="card-body">
+        <p>Your <code>process</code> function receives a context object with the following properties:</p>
+        <table class="table">
+            <tr>
+                <th>Property</th>
+                <th>Type</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><code>context.inputs</code></td>
+                <td>Object</td>
+                <td>Map of input topic names to their current values</td>
+            </tr>
+            <tr>
+                <td><code>context.triggeringTopic</code></td>
+                <td>String</td>
+                <td>Name of the topic that triggered this execution</td>
+            </tr>
+            <tr>
+                <td><code>context.lastOutputs</code></td>
+                <td>Any</td>
+                <td>Previous output value from this strategy</td>
+            </tr>
+            <tr>
+                <td><code>context.parameters</code></td>
+                <td>Object</td>
+                <td>Strategy parameters (from the Parameters field above)</td>
+            </tr>
+            <tr>
+                <td><code>context.log(message)</code></td>
+                <td>Function</td>
+                <td>Log a message to the system log</td>
+            </tr>
+            <tr>
+                <td><code>context.emit(topic, value)</code></td>
+                <td>Function</td>
+                <td>Emit a value to another topic</td>
+            </tr>
+            <tr>
+                <td><code>context.getTime()</code></td>
+                <td>Function</td>
+                <td>Get current Unix timestamp</td>
+            </tr>
+            <tr>
+                <td><code>context.getISO()</code></td>
+                <td>Function</td>
+                <td>Get current time in ISO format</td>
+            </tr>
+        </table>
+    </div>
+</div>
+{{end}}

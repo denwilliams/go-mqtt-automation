@@ -1,0 +1,59 @@
+{{define "logs-content"}}
+<h2>System Logs</h2>
+
+<div style="margin-bottom: 1rem;">
+    <form method="get" style="display: inline-block;">
+        <div class="form-group" style="display: inline-block; margin-right: 1rem;">
+            <label for="topic">Filter by topic:</label>
+            <input type="text" id="topic" name="topic" class="form-control" style="display: inline-block; width: 200px;" 
+                   value="{{.TopicName}}" placeholder="e.g., home/temperature">
+        </div>
+        
+        <div class="form-group" style="display: inline-block; margin-right: 1rem;">
+            <label for="max">Max entries:</label>
+            <input type="number" id="max" name="max" class="form-control" style="display: inline-block; width: 100px;" 
+                   value="{{.MaxEntries}}" min="10" max="1000">
+        </div>
+        
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        <a href="/logs" class="btn btn-secondary">Clear</a>
+    </form>
+</div>
+
+{{if .Logs}}
+<div class="card">
+    <div class="card-header">
+        <h3>Log Entries</h3>
+        <span style="float: right;">Showing {{len .Logs}} entries</span>
+    </div>
+    <div class="card-body">
+        <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 1rem; font-family: monospace; font-size: 14px; white-space: pre-wrap; max-height: 600px; overflow-y: auto;">{{range .Logs}}{{.}}
+{{end}}</div>
+    </div>
+</div>
+{{else}}
+<div class="card">
+    <div class="card-body">
+        <p>No log entries found{{if .TopicName}} for topic "{{.TopicName}}"{{end}}.</p>
+    </div>
+</div>
+{{end}}
+
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3>Log Information</h3>
+    </div>
+    <div class="card-body">
+        <p>System logs include:</p>
+        <ul>
+            <li>Application startup and shutdown events</li>
+            <li>MQTT connection status changes</li>
+            <li>Topic creation, modification, and deletion</li>
+            <li>Strategy execution results and errors</li>
+            <li>System errors and warnings</li>
+        </ul>
+        
+        <p>Logs are also written to <code>the console</code>.</p>
+    </div>
+</div>
+{{end}}

@@ -1,0 +1,41 @@
+# MQTT Home Automation Configuration - PostgreSQL Example
+# Copy to config.yaml and customize for your environment
+
+# MQTT broker configuration
+mqtt:
+  broker: mqtt://username:password@your-mqtt-broker:1883
+  # Alternative for local broker:
+  # broker: mqtt://localhost:1883
+  client_id: automation-server
+  topics:
+    - "sensors/+"
+    - "devices/+"
+    - "home/+"
+
+# Database configuration - PostgreSQL
+database:
+  type: postgres
+  # Connection string format: "host=localhost port=5432 user=username password=password dbname=automation sslmode=disable"
+  connection: "host=localhost port=5432 user=automation password=your_password dbname=automation sslmode=require"
+  # For cloud databases, use full connection string:
+  # connection: "postgres://username:password@hostname:port/database?sslmode=require"
+
+# Web server configuration
+web:
+  port: 8080
+  host: "0.0.0.0"
+  # For production, set to specific interface:
+  # host: "127.0.0.1"  # localhost only
+  # host: "0.0.0.0"    # all interfaces
+
+# Logging configuration
+logging:
+  level: "info"  # debug, info, warn, error
+  file: ""       # Leave empty to log to stdout
+  # file: "automation.log"  # Uncomment to log to file
+
+# System topics configuration
+system_topics:
+  enable_tickers: true
+  enable_schedulers: true
+  heartbeat_interval: "30s"

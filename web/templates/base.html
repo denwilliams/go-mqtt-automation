@@ -1,0 +1,41 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - Home Automation</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>MQTT Home Automation</h1>
+            <nav class="nav">
+                <a href="/">Dashboard</a>
+                <a href="/topics">Topics</a>
+                <a href="/strategies">Strategies</a>
+                <a href="/system">System</a>
+                <a href="/logs">Logs</a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="container">
+        {{if .Error}}
+        <div class="alert alert-error">
+            {{.Error}}
+        </div>
+        {{end}}
+
+        {{if .Success}}
+        <div class="alert alert-success">
+            {{.Success}}
+        </div>
+        {{end}}
+
+        <div class="main-content">
+            {{template "content" .}}
+        </div>
+    </div>
+</body>
+</html>{{end}}

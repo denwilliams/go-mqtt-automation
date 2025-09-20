@@ -1,0 +1,84 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# Database files
+*.db
+*.sqlite
+
+# Configuration files with secrets
+config/secrets.yaml
+config/production.yaml
+
+# Log files
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# IDE files
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Project binaries
+automation-server
+/automation-server
+
+# Build artifacts and output files
+*.txt
+curl_output.txt
+
+# Coverage and profiling
+coverage.out
+coverage.html
+*.prof
+*.pprof
+
+# Debugging and testing artifacts
+debug
+debug.*
+pprof.*
+
+# Claude Code IDE files
+.claude/
+.claude/**
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# Go module cache
+go.sum.bak
+
+# Test results
+test_results.xml
+test_output.json
+
+# Docker volumes and data
+docker-data/
+volumes/
+
+# Environment-specific configs
+.env
+.env.local
+.env.*.local

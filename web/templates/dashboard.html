@@ -1,0 +1,106 @@
+{{define "dashboard-content"}}
+<h2>Dashboard</h2>
+
+<div class="dashboard-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{len .Topics}}</div>
+        <div class="stat-label">Total Topics</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-number">{{.StrategyCount}}</div>
+        <div class="stat-label">Strategies</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-number">
+            <span class="status {{if eq .SystemStatus "Connected"}}status-connected{{else if eq .SystemStatus "Connecting"}}status-connecting{{else}}status-disconnected{{end}}">
+                {{.SystemStatus}}
+            </span>
+        </div>
+        <div class="stat-label">MQTT Status</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Topic Summary</h3>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <tr>
+                <th>Type</th>
+                <th>Count</th>
+            </tr>
+            {{range $type, $count := .TopicCounts}}
+            <tr>
+                <td><span class="topic-type topic-type-{{$type}}">{{$type}}</span></td>
+                <td>{{$count}}</td>
+            </tr>
+            {{end}}
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Recent Topics</h3>
+        <a href="/topics" class="btn btn-secondary btn-sm" style="float: right;">View All</a>
+    </div>
+    <div class="card-body">
+        {{if .Topics}}
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Topic</th>
+                    <th>Type</th>
+                    <th>Last Value</th>
+                    <th>Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range $name, $topic := .Topics}}
+                <tr>
+                    <td><strong>{{$name}}</strong></td>
+                    <td><span class="topic-type topic-type-{{$topic.Type}}">{{$topic.Type}}</span></td>
+                    <td style="max-width: 200px;">
+                        {{if $topic.LastValue}}
+                        {{$json := toJSON $topic.LastValue}}
+                        {{if gt (len $json) 60}}
+                        <code title="{{$json}}">{{truncate $json 60}}</code>
+                        {{else}}
+                        <code>{{$json}}</code>
+                        {{end}}
+                        {{else}}
+                        <em>null</em>
+                        {{end}}
+                    </td>
+                    <td>{{if not $topic.LastUpdated.IsZero}}{{$topic.LastUpdated.Format "2006-01-02 15:04:05"}}{{else}}<em>Never</em>{{end}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p>No topics configured yet. <a href="/topics/new">Create your first topic</a>.</p>
+        {{end}}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>System Log</h3>
+        <a href="/logs" class="btn btn-secondary btn-sm" style="float: right;">View All</a>
+    </div>
+    <div class="card-body">
+        {{if .RecentLogs}}
+        <ul>
+            {{range .RecentLogs}}
+            <li>{{.}}</li>
+            {{end}}
+        </ul>
+        {{else}}
+        <p>No recent log entries.</p>
+        {{end}}
+    </div>
+</div>
+{{end}}

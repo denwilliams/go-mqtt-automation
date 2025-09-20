@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  automation:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - automation_data:/app/data
+      - ./config/config.yaml:/app/config/config.yaml:ro
+    environment:
+      - CONFIG_PATH=/app/config/config.yaml
+      - DB_PATH=/app/data/automation.db
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t '$$SYS/broker/uptime' -n || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  automation_data:
+    driver: local
+
+networks:
+  default:
+    name: mqtt_automation
