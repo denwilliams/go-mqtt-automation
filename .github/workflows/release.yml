@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  release:
+    name: Build and Upload Release Assets
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Install cross-compilation dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-multilib gcc-mingw-w64
+
+    - name: Build release binaries
+      env:
+        VERSION: ${{ github.event.release.tag_name }}
+      run: |
+        mkdir -p dist
+
+        # Build for multiple platforms with version info
+        LDFLAGS="-s -w -X main.version=${VERSION} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+        # Linux AMD64
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="$LDFLAGS" -o dist/automation-server-linux-amd64 ./cmd/server
+        tar -czf dist/automation-server-linux-amd64.tar.gz -C dist automation-server-linux-amd64
+
+        # Linux ARM64
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -ldflags="$LDFLAGS" -o dist/automation-server-linux-arm64 ./cmd/server
+        tar -czf dist/automation-server-linux-arm64.tar.gz -C dist automation-server-linux-arm64
+
+        # Linux ARM (Raspberry Pi)
+        GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go build -ldflags="$LDFLAGS" -o dist/automation-server-linux-arm ./cmd/server
+        tar -czf dist/automation-server-linux-arm.tar.gz -C dist automation-server-linux-arm
+
+        # macOS AMD64
+        GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="$LDFLAGS" -o dist/automation-server-darwin-amd64 ./cmd/server
+        tar -czf dist/automation-server-darwin-amd64.tar.gz -C dist automation-server-darwin-amd64
+
+        # macOS ARM64 (Apple Silicon)
+        GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -ldflags="$LDFLAGS" -o dist/automation-server-darwin-arm64 ./cmd/server
+        tar -czf dist/automation-server-darwin-arm64.tar.gz -C dist automation-server-darwin-arm64
+
+        # Windows AMD64
+        GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -ldflags="$LDFLAGS" -o dist/automation-server-windows-amd64.exe ./cmd/server
+        zip -j dist/automation-server-windows-amd64.zip dist/automation-server-windows-amd64.exe
+
+        # List built files
+        ls -la dist/
+
+    - name: Create package with web assets
+      env:
+        VERSION: ${{ github.event.release.tag_name }}
+      run: |
+        # Create a full package with web assets for each platform
+        for platform in linux-amd64 linux-arm64 linux-arm darwin-amd64 darwin-arm64; do
+          mkdir -p "packages/automation-server-${platform}-${VERSION}"
+          cp "dist/automation-server-${platform}" "packages/automation-server-${platform}-${VERSION}/"
+          cp -r web/ "packages/automation-server-${platform}-${VERSION}/"
+          cp -r db/ "packages/automation-server-${platform}-${VERSION}/"
+          cp config/config.example.yaml "packages/automation-server-${platform}-${VERSION}/config.yaml"
+          cp README.md "packages/automation-server-${platform}-${VERSION}/"
+
+          # Create package archive
+          tar -czf "dist/automation-server-${platform}-${VERSION}-complete.tar.gz" -C packages "automation-server-${platform}-${VERSION}"
+        done
+
+        # Windows package
+        mkdir -p "packages/automation-server-windows-amd64-${VERSION}"
+        cp "dist/automation-server-windows-amd64.exe" "packages/automation-server-windows-amd64-${VERSION}/"
+        cp -r web/ "packages/automation-server-windows-amd64-${VERSION}/"
+        cp -r db/ "packages/automation-server-windows-amd64-${VERSION}/"
+        cp config/config.example.yaml "packages/automation-server-windows-amd64-${VERSION}/config.yaml"
+        cp README.md "packages/automation-server-windows-amd64-${VERSION}/"
+
+        cd packages && zip -r "../dist/automation-server-windows-amd64-${VERSION}-complete.zip" "automation-server-windows-amd64-${VERSION}"
+
+    - name: Upload Release Assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/*.tar.gz
+          dist/*.zip
+        body: |
+          ## 🚀 Release ${{ github.event.release.tag_name }}
+
+          ### 📦 Downloads
+
+          **Binary Only:**
+          - Linux AMD64: `automation-server-linux-amd64.tar.gz`
+          - Linux ARM64: `automation-server-linux-arm64.tar.gz`
+          - Linux ARM (RPi): `automation-server-linux-arm.tar.gz`
+          - macOS Intel: `automation-server-darwin-amd64.tar.gz`
+          - macOS Apple Silicon: `automation-server-darwin-arm64.tar.gz`
+          - Windows: `automation-server-windows-amd64.zip`
+
+          **Complete Package (includes web assets, configs):**
+          - Linux AMD64: `automation-server-linux-amd64-${{ github.event.release.tag_name }}-complete.tar.gz`
+          - Linux ARM64: `automation-server-linux-arm64-${{ github.event.release.tag_name }}-complete.tar.gz`
+          - Linux ARM (RPi): `automation-server-linux-arm-${{ github.event.release.tag_name }}-complete.tar.gz`
+          - macOS Intel: `automation-server-darwin-amd64-${{ github.event.release.tag_name }}-complete.tar.gz`
+          - macOS Apple Silicon: `automation-server-darwin-arm64-${{ github.event.release.tag_name }}-complete.tar.gz`
+          - Windows: `automation-server-windows-amd64-${{ github.event.release.tag_name }}-complete.zip`
+
+          ### 🔧 Installation
+
+          1. Download the appropriate package for your platform
+          2. Extract the archive
+          3. Copy `config.yaml` and modify as needed
+          4. Run `./automation-server -config config.yaml`
+
+          ### ✨ What's New
+
+          <!-- Add release notes here -->
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -8,11 +8,11 @@ import (
 )
 
 type SystemTopic struct {
-	config     SystemTopicConfig
-	manager    *Manager
-	ticker     *time.Ticker
-	stopChan   chan bool
-	isRunning  bool
+	config    SystemTopicConfig
+	manager   *Manager
+	ticker    *time.Ticker
+	stopChan  chan bool
+	isRunning bool
 }
 
 func NewSystemTopic(name string, config map[string]interface{}) *SystemTopic {
@@ -139,7 +139,7 @@ func (st *SystemTopic) runTicker() {
 				"iso_time":  t.Format(time.RFC3339),
 				"topic":     st.config.Name,
 			}
-			
+
 			if err := st.Emit(value); err != nil {
 				// Log error but continue running
 				if st.manager != nil && st.manager.logger != nil {
@@ -156,13 +156,13 @@ func (st *SystemTopic) GetConfig() SystemTopicConfig {
 
 func (st *SystemTopic) UpdateConfig(config SystemTopicConfig) {
 	wasRunning := st.isRunning
-	
+
 	if wasRunning {
 		st.Stop()
 	}
-	
+
 	st.config = config
-	
+
 	if wasRunning {
 		_ = st.Start() // Ignore error on restart
 	}
@@ -211,6 +211,6 @@ func (st *SystemTopic) EmitSystemEvent(eventType string, data interface{}) error
 		"iso_time":   time.Now().Format(time.RFC3339),
 		"data":       data,
 	}
-	
+
 	return st.Emit(event)
 }

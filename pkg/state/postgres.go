@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
+	"github.com/denwilliams/go-mqtt-automation/pkg/topics"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
-	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
-	"github.com/denwilliams/go-mqtt-automation/pkg/topics"
 )
 
 type PostgreSQLDatabase struct {
-	db   *sql.DB
-	dsn  string
+	db  *sql.DB
+	dsn string
 }
 
 func NewPostgreSQLDatabase(dsn string) (*PostgreSQLDatabase, error) {
@@ -103,9 +103,9 @@ func (p *PostgreSQLDatabase) saveBaseTopic(config topics.BaseTopicConfig) error 
 
 	var lastValueJSON sql.NullString
 	if config.LastValue != nil {
-		lastValueBytes, err := json.Marshal(config.LastValue)
-		if err != nil {
-			return fmt.Errorf("failed to marshal last value: %w", err)
+		lastValueBytes, marshalErr := json.Marshal(config.LastValue)
+		if marshalErr != nil {
+			return fmt.Errorf("failed to marshal last value: %w", marshalErr)
 		}
 		lastValueJSON = sql.NullString{String: string(lastValueBytes), Valid: true}
 	}
@@ -120,7 +120,7 @@ func (p *PostgreSQLDatabase) saveBaseTopic(config topics.BaseTopicConfig) error 
 			last_updated = EXCLUDED.last_updated,
 			config = EXCLUDED.config
 	`
-	
+
 	_, err = p.db.Exec(query, config.Name, config.Type, lastValueJSON, config.LastUpdated, string(configJSON), config.CreatedAt)
 	return err
 }
@@ -141,7 +141,7 @@ func (p *PostgreSQLDatabase) saveInternalTopic(config topics.InternalTopicConfig
 		SET inputs = $1, strategy_id = $2, emit_to_mqtt = $3, noop_unchanged = $4
 		WHERE name = $5
 	`
-	
+
 	_, err = p.db.Exec(query, string(inputsJSON), config.StrategyID, config.EmitToMQTT, config.NoOpUnchanged, config.Name)
 	return err
 }
@@ -226,7 +226,7 @@ func (p *PostgreSQLDatabase) LoadAllTopics() ([]interface{}, error) {
 func (p *PostgreSQLDatabase) buildTopicConfig(name, topicType string, inputs, strategyID sql.NullString,
 	emitToMQTT, noopUnchanged sql.NullBool, lastValue sql.NullString, lastUpdated, createdAt time.Time,
 	config string) (interface{}, error) {
-	
+
 	var parsedLastValue interface{}
 	if lastValue.Valid && lastValue.String != "" {
 		if err := json.Unmarshal([]byte(lastValue.String), &parsedLastValue); err != nil {

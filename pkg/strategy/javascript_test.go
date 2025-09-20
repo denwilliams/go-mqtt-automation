@@ -8,11 +8,11 @@ import (
 
 func TestNewJavaScriptExecutor(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	if executor == nil {
 		t.Fatal("NewJavaScriptExecutor() returned nil")
 	}
-	
+
 	if executor.maxExecutionTime <= 0 {
 		t.Error("maxExecutionTime not set")
 	}
@@ -20,7 +20,7 @@ func TestNewJavaScriptExecutor(t *testing.T) {
 
 func TestJavaScriptExecutor_Validate(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	tests := []struct {
 		name    string
 		code    string
@@ -62,7 +62,7 @@ func TestJavaScriptExecutor_Validate(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := executor.Validate(tt.code)
@@ -75,7 +75,7 @@ func TestJavaScriptExecutor_Validate(t *testing.T) {
 
 func TestJavaScriptExecutor_Execute_Basic(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	strategy := &Strategy{
 		ID:   "test",
 		Name: "Test Strategy",
@@ -91,7 +91,7 @@ func TestJavaScriptExecutor_Execute_Basic(t *testing.T) {
 			"test_param": "test_value",
 		},
 	}
-	
+
 	context := ExecutionContext{
 		InputValues: map[string]interface{}{
 			"topic1": 25.5,
@@ -101,30 +101,30 @@ func TestJavaScriptExecutor_Execute_Basic(t *testing.T) {
 		LastOutputs:     nil,
 		Parameters:      strategy.Parameters,
 	}
-	
+
 	result := executor.Execute(strategy, context)
-	
+
 	if result.Error != nil {
 		t.Fatalf("Execute() failed: %v", result.Error)
 	}
-	
+
 	if result.ExecutionTime <= 0 {
 		t.Error("ExecutionTime not set")
 	}
-	
+
 	resultMap, ok := result.Result.(map[string]interface{})
 	if !ok {
 		t.Fatal("result is not a map")
 	}
-	
+
 	if resultMap["input_count"] != int64(2) {
 		t.Errorf("input_count = %v, want 2", resultMap["input_count"])
 	}
-	
+
 	if resultMap["trigger"] != "topic1" {
 		t.Errorf("trigger = %v, want 'topic1'", resultMap["trigger"])
 	}
-	
+
 	if _, ok := resultMap["timestamp"].(int64); !ok {
 		t.Error("timestamp not returned as int64")
 	}
@@ -132,7 +132,7 @@ func TestJavaScriptExecutor_Execute_Basic(t *testing.T) {
 
 func TestJavaScriptExecutor_Execute_WithLogging(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	strategy := &Strategy{
 		Code: `function process(context) {
 			context.log('This is a test message');
@@ -140,27 +140,27 @@ func TestJavaScriptExecutor_Execute_WithLogging(t *testing.T) {
 			return 'logged';
 		}`,
 	}
-	
+
 	context := ExecutionContext{
 		InputValues: map[string]interface{}{
 			"test": 42,
 		},
 	}
-	
+
 	result := executor.Execute(strategy, context)
-	
+
 	if result.Error != nil {
 		t.Fatalf("Execute() failed: %v", result.Error)
 	}
-	
+
 	if len(result.LogMessages) != 2 {
 		t.Errorf("expected 2 log messages, got %d", len(result.LogMessages))
 	}
-	
+
 	if result.LogMessages[0] != "This is a test message" {
 		t.Errorf("first log message = %q, want 'This is a test message'", result.LogMessages[0])
 	}
-	
+
 	if result.LogMessages[1] != "Value is: 42" {
 		t.Errorf("second log message = %q, want 'Value is: 42'", result.LogMessages[1])
 	}
@@ -168,7 +168,7 @@ func TestJavaScriptExecutor_Execute_WithLogging(t *testing.T) {
 
 func TestJavaScriptExecutor_Execute_WithEmit(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	strategy := &Strategy{
 		Code: `function process(context) {
 			context.emit('output/topic1', 'hello');
@@ -176,26 +176,26 @@ func TestJavaScriptExecutor_Execute_WithEmit(t *testing.T) {
 			return 'emitted';
 		}`,
 	}
-	
+
 	context := ExecutionContext{
 		InputValues: map[string]interface{}{},
 	}
-	
+
 	result := executor.Execute(strategy, context)
-	
+
 	if result.Error != nil {
 		t.Fatalf("Execute() failed: %v", result.Error)
 	}
-	
+
 	if len(result.EmittedEvents) != 2 {
 		t.Errorf("expected 2 emitted events, got %d", len(result.EmittedEvents))
 	}
-	
+
 	event1 := result.EmittedEvents[0]
 	if event1.Topic != "output/topic1" || event1.Value != "hello" {
 		t.Errorf("first event = {%q, %v}, want {'output/topic1', 'hello'}", event1.Topic, event1.Value)
 	}
-	
+
 	event2 := result.EmittedEvents[1]
 	if event2.Topic != "output/topic2" {
 		t.Errorf("second event topic = %q, want 'output/topic2'", event2.Topic)
@@ -204,7 +204,7 @@ func TestJavaScriptExecutor_Execute_WithEmit(t *testing.T) {
 
 func TestJavaScriptExecutor_Execute_WithUtilityFunctions(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	strategy := &Strategy{
 		Code: `function process(context) {
 			return {
@@ -215,34 +215,34 @@ func TestJavaScriptExecutor_Execute_WithUtilityFunctions(t *testing.T) {
 			};
 		}`,
 	}
-	
+
 	context := ExecutionContext{
 		InputValues: map[string]interface{}{},
 	}
-	
+
 	result := executor.Execute(strategy, context)
-	
+
 	if result.Error != nil {
 		t.Fatalf("Execute() failed: %v", result.Error)
 	}
-	
+
 	resultMap, ok := result.Result.(map[string]interface{})
 	if !ok {
 		t.Fatal("result is not a map")
 	}
-	
+
 	// Check getTime()
 	if _, ok := resultMap["current_time"].(int64); !ok {
 		t.Error("getTime() did not return int64")
 	}
-	
+
 	// Check getISO()
 	if isoTime, ok := resultMap["iso_time"].(string); !ok {
 		t.Error("getISO() did not return string")
 	} else if len(isoTime) == 0 {
 		t.Error("getISO() returned empty string")
 	}
-	
+
 	// Check parseJSON()
 	parsedJSON := resultMap["parsed_json"]
 	if parsedMap, ok := parsedJSON.(map[string]interface{}); !ok {
@@ -262,7 +262,7 @@ func TestJavaScriptExecutor_Execute_WithUtilityFunctions(t *testing.T) {
 			t.Errorf("parseJSON() test value = %v (type %T), want 123", testValue, testValue)
 		}
 	}
-	
+
 	// Check stringify()
 	if stringified, ok := resultMap["stringified"].(string); !ok {
 		t.Error("stringify() did not return string")
@@ -273,7 +273,7 @@ func TestJavaScriptExecutor_Execute_WithUtilityFunctions(t *testing.T) {
 
 func TestJavaScriptExecutor_Execute_WithMath(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	strategy := &Strategy{
 		Code: `function process(context) {
 			return {
@@ -284,34 +284,34 @@ func TestJavaScriptExecutor_Execute_WithMath(t *testing.T) {
 			};
 		}`,
 	}
-	
+
 	context := ExecutionContext{
 		InputValues: map[string]interface{}{},
 	}
-	
+
 	result := executor.Execute(strategy, context)
-	
+
 	if result.Error != nil {
 		t.Fatalf("Execute() failed: %v", result.Error)
 	}
-	
+
 	resultMap, ok := result.Result.(map[string]interface{})
 	if !ok {
 		t.Fatal("result is not a map")
 	}
-	
+
 	if resultMap["abs_value"] != int64(5) {
 		t.Errorf("Math.abs(-5) = %v, want 5", resultMap["abs_value"])
 	}
-	
+
 	if resultMap["max_value"] != int64(5) {
 		t.Errorf("Math.max(1,5,3) = %v, want 5", resultMap["max_value"])
 	}
-	
+
 	if resultMap["min_value"] != int64(1) {
 		t.Errorf("Math.min(1,5,3) = %v, want 1", resultMap["min_value"])
 	}
-	
+
 	if resultMap["rounded"] != int64(4) {
 		t.Errorf("Math.round(3.7) = %v, want 4", resultMap["rounded"])
 	}
@@ -319,7 +319,7 @@ func TestJavaScriptExecutor_Execute_WithMath(t *testing.T) {
 
 func TestJavaScriptExecutor_Execute_WithError(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	tests := []struct {
 		name     string
 		code     string
@@ -345,22 +345,22 @@ func TestJavaScriptExecutor_Execute_WithError(t *testing.T) {
 			errorMsg: "",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			strategy := &Strategy{Code: tt.code}
 			context := ExecutionContext{InputValues: map[string]interface{}{}}
-			
+
 			result := executor.Execute(strategy, context)
-			
+
 			if tt.wantErr && result.Error == nil {
 				t.Error("expected error but got none")
 			}
-			
+
 			if !tt.wantErr && result.Error != nil {
 				t.Errorf("unexpected error: %v", result.Error)
 			}
-			
+
 			if tt.wantErr && tt.errorMsg != "" && result.Error != nil {
 				if !strings.Contains(result.Error.Error(), tt.errorMsg) {
 					t.Errorf("error message %q does not contain %q", result.Error.Error(), tt.errorMsg)
@@ -373,7 +373,7 @@ func TestJavaScriptExecutor_Execute_WithError(t *testing.T) {
 func TestJavaScriptExecutor_Execute_Timeout(t *testing.T) {
 	executor := NewJavaScriptExecutor()
 	executor.maxExecutionTime = 10 * time.Millisecond // Very short timeout for testing
-	
+
 	strategy := &Strategy{
 		Code: `function process(context) {
 			// Infinite loop to test timeout
@@ -383,21 +383,21 @@ func TestJavaScriptExecutor_Execute_Timeout(t *testing.T) {
 			return 'never reached';
 		}`,
 	}
-	
+
 	context := ExecutionContext{
 		InputValues: map[string]interface{}{},
 	}
-	
+
 	result := executor.Execute(strategy, context)
-	
+
 	if result.Error == nil {
 		t.Error("expected timeout error but got none")
 	}
-	
+
 	if !strings.Contains(result.Error.Error(), "timeout") {
 		t.Errorf("expected timeout error, got: %v", result.Error)
 	}
-	
+
 	if result.ExecutionTime < executor.maxExecutionTime {
 		t.Errorf("execution time %v should be at least %v", result.ExecutionTime, executor.maxExecutionTime)
 	}
@@ -405,7 +405,7 @@ func TestJavaScriptExecutor_Execute_Timeout(t *testing.T) {
 
 func TestJavaScriptExecutor_Execute_ComplexStrategy(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	strategy := &Strategy{
 		Code: `function process(context) {
 			var temps = [];
@@ -453,7 +453,7 @@ func TestJavaScriptExecutor_Execute_ComplexStrategy(t *testing.T) {
 			"threshold": 22.0,
 		},
 	}
-	
+
 	context := ExecutionContext{
 		InputValues: map[string]interface{}{
 			"sensors/temperature/living-room": 24.5,
@@ -463,19 +463,19 @@ func TestJavaScriptExecutor_Execute_ComplexStrategy(t *testing.T) {
 		},
 		Parameters: strategy.Parameters,
 	}
-	
+
 	result := executor.Execute(strategy, context)
-	
+
 	if result.Error != nil {
 		t.Fatalf("Execute() failed: %v", result.Error)
 	}
-	
+
 	// Check result
 	resultMap, ok := result.Result.(map[string]interface{})
 	if !ok {
 		t.Fatal("result is not a map")
 	}
-	
+
 	// expectedAverage := (24.5 + 26.0 + 21.5) / 3 // 24.0
 	avgTempRaw := resultMap["average_temp"]
 	// JavaScript might return integers for whole numbers
@@ -490,20 +490,20 @@ func TestJavaScriptExecutor_Execute_ComplexStrategy(t *testing.T) {
 	} else {
 		t.Errorf("average_temp not returned as float64 or int64, got %T: %v", avgTempRaw, avgTempRaw)
 	}
-	
+
 	if resultMap["sensor_count"] != int64(3) {
 		t.Errorf("sensor_count = %v, want 3", resultMap["sensor_count"])
 	}
-	
+
 	if resultMap["is_high"] != true {
 		t.Errorf("is_high = %v, want true (24.0 > 22.0)", resultMap["is_high"])
 	}
-	
+
 	// Check log messages
 	if len(result.LogMessages) < 2 {
 		t.Errorf("expected at least 2 log messages, got %d", len(result.LogMessages))
 	}
-	
+
 	// Check emitted events (high temp alert should be triggered)
 	if len(result.EmittedEvents) != 1 {
 		t.Errorf("expected 1 emitted event, got %d", len(result.EmittedEvents))
@@ -517,7 +517,7 @@ func TestJavaScriptExecutor_Execute_ComplexStrategy(t *testing.T) {
 
 func TestJavaScriptExecutor_Execute_WithLastOutputs(t *testing.T) {
 	executor := NewJavaScriptExecutor()
-	
+
 	strategy := &Strategy{
 		Code: `function process(context) {
 			var currentValue = context.inputs['sensor'];
@@ -536,7 +536,7 @@ func TestJavaScriptExecutor_Execute_WithLastOutputs(t *testing.T) {
 			};
 		}`,
 	}
-	
+
 	// First execution (no previous outputs)
 	context1 := ExecutionContext{
 		InputValues: map[string]interface{}{
@@ -544,17 +544,17 @@ func TestJavaScriptExecutor_Execute_WithLastOutputs(t *testing.T) {
 		},
 		LastOutputs: nil,
 	}
-	
+
 	result1 := executor.Execute(strategy, context1)
 	if result1.Error != nil {
 		t.Fatalf("First execute failed: %v", result1.Error)
 	}
-	
+
 	result1Map := result1.Result.(map[string]interface{})
 	if result1Map["change_count"] != int64(1) {
 		t.Errorf("first execution change_count = %v, want 1", result1Map["change_count"])
 	}
-	
+
 	// Second execution (with previous outputs, same value)
 	context2 := ExecutionContext{
 		InputValues: map[string]interface{}{
@@ -562,12 +562,12 @@ func TestJavaScriptExecutor_Execute_WithLastOutputs(t *testing.T) {
 		},
 		LastOutputs: result1Map,
 	}
-	
+
 	result2 := executor.Execute(strategy, context2)
 	if result2.Error != nil {
 		t.Fatalf("Second execute failed: %v", result2.Error)
 	}
-	
+
 	result2Map := result2.Result.(map[string]interface{})
 	if result2Map["changed"] != false {
 		t.Error("second execution should not show change for same value")
@@ -575,7 +575,7 @@ func TestJavaScriptExecutor_Execute_WithLastOutputs(t *testing.T) {
 	if result2Map["change_count"] != int64(1) {
 		t.Errorf("second execution change_count = %v, want 1", result2Map["change_count"])
 	}
-	
+
 	// Third execution (with previous outputs, different value)
 	context3 := ExecutionContext{
 		InputValues: map[string]interface{}{
@@ -583,12 +583,12 @@ func TestJavaScriptExecutor_Execute_WithLastOutputs(t *testing.T) {
 		},
 		LastOutputs: result2Map,
 	}
-	
+
 	result3 := executor.Execute(strategy, context3)
 	if result3.Error != nil {
 		t.Fatalf("Third execute failed: %v", result3.Error)
 	}
-	
+
 	result3Map := result3.Result.(map[string]interface{})
 	if result3Map["changed"] != true {
 		t.Error("third execution should show change for different value")

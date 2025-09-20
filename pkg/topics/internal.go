@@ -68,7 +68,7 @@ func (it *InternalTopic) IsNoOpUnchanged() bool {
 
 func (it *InternalTopic) Emit(value interface{}) error {
 	previousValue := it.config.LastValue
-	
+
 	// Check if we should skip unchanged values
 	if it.config.NoOpUnchanged && it.valuesEqual(value, previousValue) {
 		return nil // Skip emission

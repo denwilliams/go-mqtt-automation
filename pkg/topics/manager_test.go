@@ -42,27 +42,27 @@ func (m *mockStateManager) LoadTopicState(topicName string) (interface{}, error)
 
 func TestNewManager(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	if manager == nil {
 		t.Fatal("NewManager() returned nil")
 	}
-	
+
 	if manager.topics == nil {
 		t.Error("topics map not initialized")
 	}
-	
+
 	if manager.externalTopics == nil {
 		t.Error("externalTopics map not initialized")
 	}
-	
+
 	if manager.internalTopics == nil {
 		t.Error("internalTopics map not initialized")
 	}
-	
+
 	if manager.systemTopics == nil {
 		t.Error("systemTopics map not initialized")
 	}
-	
+
 	if manager.logger == nil {
 		t.Error("logger not initialized")
 	}
@@ -71,7 +71,7 @@ func TestNewManager(t *testing.T) {
 func TestNewManagerWithCustomLogger(t *testing.T) {
 	customLogger := log.New(os.Stderr, "TEST: ", log.LstdFlags)
 	manager := NewManager(customLogger)
-	
+
 	if manager.logger != customLogger {
 		t.Error("custom logger not set")
 	}
@@ -79,30 +79,30 @@ func TestNewManagerWithCustomLogger(t *testing.T) {
 
 func TestAddExternalTopic(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	topic := manager.AddExternalTopic("sensors/temperature")
-	
+
 	if topic == nil {
 		t.Fatal("AddExternalTopic() returned nil")
 	}
-	
+
 	if topic.Name() != "sensors/temperature" {
 		t.Errorf("topic name = %q, want 'sensors/temperature'", topic.Name())
 	}
-	
+
 	if topic.Type() != TopicTypeExternal {
 		t.Errorf("topic type = %v, want %v", topic.Type(), TopicTypeExternal)
 	}
-	
+
 	// Check it's in the manager's maps
 	if len(manager.externalTopics) != 1 {
 		t.Error("external topic not added to externalTopics map")
 	}
-	
+
 	if len(manager.topics) != 1 {
 		t.Error("external topic not added to topics map")
 	}
-	
+
 	// Adding same topic should return existing one
 	topic2 := manager.AddExternalTopic("sensors/temperature")
 	if topic2 != topic {
@@ -112,43 +112,43 @@ func TestAddExternalTopic(t *testing.T) {
 
 func TestAddInternalTopic(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	inputs := []string{"sensors/temp1", "sensors/temp2"}
 	topic, err := manager.AddInternalTopic("calculated/average", inputs, "test-strategy")
-	
+
 	if err != nil {
 		t.Fatalf("AddInternalTopic() failed: %v", err)
 	}
-	
+
 	if topic == nil {
 		t.Fatal("AddInternalTopic() returned nil")
 	}
-	
+
 	if topic.Name() != "calculated/average" {
 		t.Errorf("topic name = %q, want 'calculated/average'", topic.Name())
 	}
-	
+
 	if topic.Type() != TopicTypeInternal {
 		t.Errorf("topic type = %v, want %v", topic.Type(), TopicTypeInternal)
 	}
-	
+
 	if len(topic.GetInputs()) != 2 {
 		t.Errorf("input count = %d, want 2", len(topic.GetInputs()))
 	}
-	
+
 	if topic.GetStrategyID() != "test-strategy" {
 		t.Errorf("strategy ID = %q, want 'test-strategy'", topic.GetStrategyID())
 	}
-	
+
 	// Check it's in the manager's maps
 	if len(manager.internalTopics) != 1 {
 		t.Error("internal topic not added to internalTopics map")
 	}
-	
+
 	if len(manager.topics) != 1 {
 		t.Error("internal topic not added to topics map")
 	}
-	
+
 	// Try to add duplicate
 	_, err = manager.AddInternalTopic("calculated/average", inputs, "other-strategy")
 	if err == nil {
@@ -158,35 +158,35 @@ func TestAddInternalTopic(t *testing.T) {
 
 func TestAddSystemTopic(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	config := map[string]interface{}{
 		"interval":    "5s",
 		"description": "Test ticker",
 	}
-	
+
 	topic := manager.AddSystemTopic("system/ticker/5s", config)
-	
+
 	if topic == nil {
 		t.Fatal("AddSystemTopic() returned nil")
 	}
-	
+
 	if topic.Name() != "system/ticker/5s" {
 		t.Errorf("topic name = %q, want 'system/ticker/5s'", topic.Name())
 	}
-	
+
 	if topic.Type() != TopicTypeSystem {
 		t.Errorf("topic type = %v, want %v", topic.Type(), TopicTypeSystem)
 	}
-	
+
 	// Check it's in the manager's maps
 	if len(manager.systemTopics) != 1 {
 		t.Error("system topic not added to systemTopics map")
 	}
-	
+
 	if len(manager.topics) != 1 {
 		t.Error("system topic not added to topics map")
 	}
-	
+
 	// Adding same topic should return existing one
 	topic2 := manager.AddSystemTopic("system/ticker/5s", config)
 	if topic2 != topic {
@@ -196,50 +196,50 @@ func TestAddSystemTopic(t *testing.T) {
 
 func TestRemoveTopic(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	// Add topics of different types
 	extTopic := manager.AddExternalTopic("sensors/temp")
 	intTopic, _ := manager.AddInternalTopic("calc/avg", []string{"input"}, "strategy")
 	sysTopic := manager.AddSystemTopic("system/test", map[string]interface{}{})
-	
+
 	if len(manager.topics) != 3 {
 		t.Fatalf("expected 3 topics, got %d", len(manager.topics))
 	}
-	
+
 	// Remove external topic
 	err := manager.RemoveTopic(extTopic.Name())
 	if err != nil {
 		t.Errorf("RemoveTopic() failed for external topic: %v", err)
 	}
-	
+
 	if len(manager.externalTopics) != 0 {
 		t.Error("external topic not removed from externalTopics map")
 	}
-	
+
 	// Remove internal topic
 	err = manager.RemoveTopic(intTopic.Name())
 	if err != nil {
 		t.Errorf("RemoveTopic() failed for internal topic: %v", err)
 	}
-	
+
 	if len(manager.internalTopics) != 0 {
 		t.Error("internal topic not removed from internalTopics map")
 	}
-	
+
 	// Remove system topic
 	err = manager.RemoveTopic(sysTopic.Name())
 	if err != nil {
 		t.Errorf("RemoveTopic() failed for system topic: %v", err)
 	}
-	
+
 	if len(manager.systemTopics) != 0 {
 		t.Error("system topic not removed from systemTopics map")
 	}
-	
+
 	if len(manager.topics) != 0 {
 		t.Error("topics not removed from main topics map")
 	}
-	
+
 	// Try to remove non-existent topic
 	err = manager.RemoveTopic("nonexistent")
 	if err == nil {
@@ -249,16 +249,16 @@ func TestRemoveTopic(t *testing.T) {
 
 func TestGetTopic(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	// Add test topic
 	added := manager.AddExternalTopic("test/topic")
-	
+
 	// Get existing topic
 	retrieved := manager.GetTopic("test/topic")
 	if retrieved != added {
 		t.Error("GetTopic() returned different instance")
 	}
-	
+
 	// Get non-existent topic
 	notFound := manager.GetTopic("nonexistent")
 	if notFound != nil {
@@ -268,32 +268,32 @@ func TestGetTopic(t *testing.T) {
 
 func TestListTopics(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	// Add topics of different types
 	manager.AddExternalTopic("sensors/temp")
 	manager.AddInternalTopic("calc/avg", []string{"input"}, "strategy")
 	manager.AddSystemTopic("system/test", map[string]interface{}{})
-	
+
 	topics := manager.ListTopics()
-	
+
 	if len(topics) != 3 {
 		t.Errorf("ListTopics() returned %d topics, want 3", len(topics))
 	}
-	
+
 	// Verify all types are present
 	typeCount := make(map[TopicType]int)
 	for _, topic := range topics {
 		typeCount[topic.Type()]++
 	}
-	
+
 	if typeCount[TopicTypeExternal] != 1 {
 		t.Errorf("expected 1 external topic, got %d", typeCount[TopicTypeExternal])
 	}
-	
+
 	if typeCount[TopicTypeInternal] != 1 {
 		t.Errorf("expected 1 internal topic, got %d", typeCount[TopicTypeInternal])
 	}
-	
+
 	if typeCount[TopicTypeSystem] != 1 {
 		t.Errorf("expected 1 system topic, got %d", typeCount[TopicTypeSystem])
 	}
@@ -301,25 +301,25 @@ func TestListTopics(t *testing.T) {
 
 func TestListTopicsByType(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	// Add multiple topics of different types
 	manager.AddExternalTopic("sensors/temp1")
 	manager.AddExternalTopic("sensors/temp2")
 	manager.AddInternalTopic("calc/avg", []string{"input"}, "strategy")
 	manager.AddSystemTopic("system/test", map[string]interface{}{})
-	
+
 	// List external topics only
 	externalTopics := manager.ListTopicsByType(TopicTypeExternal)
 	if len(externalTopics) != 2 {
 		t.Errorf("ListTopicsByType(External) returned %d topics, want 2", len(externalTopics))
 	}
-	
+
 	// List internal topics only
 	internalTopics := manager.ListTopicsByType(TopicTypeInternal)
 	if len(internalTopics) != 1 {
 		t.Errorf("ListTopicsByType(Internal) returned %d topics, want 1", len(internalTopics))
 	}
-	
+
 	// List system topics only
 	systemTopics := manager.ListTopicsByType(TopicTypeSystem)
 	if len(systemTopics) != 1 {
@@ -329,7 +329,7 @@ func TestListTopicsByType(t *testing.T) {
 
 func TestNotifyTopicUpdate(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	// Set up mock strategy executor
 	executionCalled := false
 	mockExec := &mockStrategyExecutor{
@@ -351,17 +351,17 @@ func TestNotifyTopicUpdate(t *testing.T) {
 		},
 	}
 	manager.SetStrategyExecutor(mockExec)
-	
+
 	// Add external topic (source) and set its value
 	extTopic := manager.AddExternalTopic("sensors/temp")
 	extTopic.Emit(25.5) // Set the value first
-	
+
 	// Add internal topic that depends on the external topic
 	_, err := manager.AddInternalTopic("processed/temp", []string{"sensors/temp"}, "test-strategy")
 	if err != nil {
 		t.Fatalf("Failed to add internal topic: %v", err)
 	}
-	
+
 	// Simulate topic update
 	event := TopicEvent{
 		TopicName:     "sensors/temp",
@@ -370,12 +370,12 @@ func TestNotifyTopicUpdate(t *testing.T) {
 		Timestamp:     time.Now(),
 		TriggerTopic:  "sensors/temp",
 	}
-	
+
 	err = manager.NotifyTopicUpdate(event)
 	if err != nil {
 		t.Errorf("NotifyTopicUpdate() failed: %v", err)
 	}
-	
+
 	if !executionCalled {
 		t.Error("strategy execution was not triggered")
 	}
@@ -383,28 +383,28 @@ func TestNotifyTopicUpdate(t *testing.T) {
 
 func TestGetTopicCount(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	counts := manager.GetTopicCount()
 	if counts[TopicTypeExternal] != 0 || counts[TopicTypeInternal] != 0 || counts[TopicTypeSystem] != 0 {
 		t.Error("expected all counts to be 0 initially")
 	}
-	
+
 	// Add topics
 	manager.AddExternalTopic("sensors/temp1")
 	manager.AddExternalTopic("sensors/temp2")
 	manager.AddInternalTopic("calc/avg", []string{"input"}, "strategy")
 	manager.AddSystemTopic("system/test", map[string]interface{}{})
-	
+
 	counts = manager.GetTopicCount()
-	
+
 	if counts[TopicTypeExternal] != 2 {
 		t.Errorf("external count = %d, want 2", counts[TopicTypeExternal])
 	}
-	
+
 	if counts[TopicTypeInternal] != 1 {
 		t.Errorf("internal count = %d, want 1", counts[TopicTypeInternal])
 	}
-	
+
 	if counts[TopicTypeSystem] != 1 {
 		t.Errorf("system count = %d, want 1", counts[TopicTypeSystem])
 	}
@@ -413,9 +413,9 @@ func TestGetTopicCount(t *testing.T) {
 func TestSetStrategyExecutor(t *testing.T) {
 	manager := NewManager(nil)
 	mockExec := &mockStrategyExecutor{}
-	
+
 	manager.SetStrategyExecutor(mockExec)
-	
+
 	if manager.strategyExecutor != mockExec {
 		t.Error("strategy executor not set")
 	}
@@ -424,9 +424,9 @@ func TestSetStrategyExecutor(t *testing.T) {
 func TestSetStateManager(t *testing.T) {
 	manager := NewManager(nil)
 	mockState := &mockStateManager{}
-	
+
 	manager.SetStateManager(mockState)
-	
+
 	if manager.stateManager != mockState {
 		t.Error("state manager not set")
 	}
@@ -434,13 +434,13 @@ func TestSetStateManager(t *testing.T) {
 
 func TestExecuteStrategy(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	// Test without strategy executor
 	_, err := manager.ExecuteStrategy("test", map[string]interface{}{}, "topic", nil)
 	if err == nil {
 		t.Error("expected error when no strategy executor is set")
 	}
-	
+
 	// Test with strategy executor
 	mockExec := &mockStrategyExecutor{
 		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
@@ -448,12 +448,12 @@ func TestExecuteStrategy(t *testing.T) {
 		},
 	}
 	manager.SetStrategyExecutor(mockExec)
-	
+
 	result, err := manager.ExecuteStrategy("test-strategy", map[string]interface{}{"input": 1}, "trigger", "last")
 	if err != nil {
 		t.Errorf("ExecuteStrategy() failed: %v", err)
 	}
-	
+
 	if result != "test result" {
 		t.Errorf("result = %q, want 'test result'", result)
 	}
@@ -461,13 +461,13 @@ func TestExecuteStrategy(t *testing.T) {
 
 func TestSaveTopicState(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	// Test without state manager (should not error)
 	err := manager.SaveTopicState("test/topic", "value")
 	if err != nil {
 		t.Errorf("SaveTopicState() failed without state manager: %v", err)
 	}
-	
+
 	// Test with state manager
 	saveCalled := false
 	mockState := &mockStateManager{
@@ -483,12 +483,12 @@ func TestSaveTopicState(t *testing.T) {
 		},
 	}
 	manager.SetStateManager(mockState)
-	
+
 	err = manager.SaveTopicState("test/topic", "test value")
 	if err != nil {
 		t.Errorf("SaveTopicState() failed: %v", err)
 	}
-	
+
 	if !saveCalled {
 		t.Error("state manager save was not called")
 	}
@@ -496,10 +496,10 @@ func TestSaveTopicState(t *testing.T) {
 
 func TestConcurrentAccess(t *testing.T) {
 	manager := NewManager(nil)
-	
+
 	// Run concurrent operations
 	done := make(chan bool, 3)
-	
+
 	// Concurrent topic additions
 	go func() {
 		for i := 0; i < 50; i++ {
@@ -507,7 +507,7 @@ func TestConcurrentAccess(t *testing.T) {
 		}
 		done <- true
 	}()
-	
+
 	// Concurrent topic listings
 	go func() {
 		for i := 0; i < 100; i++ {
@@ -516,7 +516,7 @@ func TestConcurrentAccess(t *testing.T) {
 		}
 		done <- true
 	}()
-	
+
 	// Concurrent topic updates
 	go func() {
 		for i := 0; i < 50; i++ {
@@ -529,12 +529,12 @@ func TestConcurrentAccess(t *testing.T) {
 		}
 		done <- true
 	}()
-	
+
 	// Wait for all goroutines to complete
 	for i := 0; i < 3; i++ {
 		<-done
 	}
-	
+
 	// Verify manager is still functional
 	topics := manager.ListTopics()
 	if len(topics) < 1 {

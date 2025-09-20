@@ -34,7 +34,7 @@ func NewEngine(logger *log.Logger) *Engine {
 func (e *Engine) RegisterExecutor(language string, executor LanguageExecutor) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
-	
+
 	e.executors[language] = executor
 	e.logger.Printf("Registered strategy executor for language: %s", language)
 }
@@ -57,7 +57,7 @@ func (e *Engine) AddStrategy(strategy *Strategy) error {
 
 	e.strategies[strategy.ID] = strategy
 	e.logger.Printf("Added strategy: %s (%s)", strategy.Name, strategy.ID)
-	
+
 	return nil
 }
 
@@ -71,7 +71,7 @@ func (e *Engine) RemoveStrategy(strategyID string) error {
 
 	delete(e.strategies, strategyID)
 	e.logger.Printf("Removed strategy: %s", strategyID)
-	
+
 	return nil
 }
 
@@ -216,7 +216,7 @@ func (e *Engine) UpdateStrategy(strategy *Strategy) error {
 
 	e.strategies[strategy.ID] = strategy
 	e.logger.Printf("Updated strategy: %s (%s)", strategy.Name, strategy.ID)
-	
+
 	return nil
 }
 
@@ -228,13 +228,13 @@ func (e *Engine) GetSupportedLanguages() []string {
 	for lang := range e.executors {
 		languages = append(languages, lang)
 	}
-	
+
 	return languages
 }
 
 func (e *Engine) GetStrategyCount() int {
 	e.mutex.RLock()
 	defer e.mutex.RUnlock()
-	
+
 	return len(e.strategies)
 }

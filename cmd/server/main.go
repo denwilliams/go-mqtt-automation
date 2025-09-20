@@ -20,14 +20,17 @@ import (
 )
 
 var (
-	configPath = flag.String("config", "config/config.yaml", "Path to configuration file")
-	migrate    = flag.Bool("migrate", false, "Run database migrations and exit")
-	version    = flag.Bool("version", false, "Show version and exit")
+	configPath  = flag.String("config", "config/config.yaml", "Path to configuration file")
+	migrate     = flag.Bool("migrate", false, "Run database migrations and exit")
+	showVersion = flag.Bool("version", false, "Show version and exit")
+
+	// Build-time variables
+	version   = "dev"
+	buildDate = "unknown"
 )
 
 const (
-	appName    = "MQTT Home Automation"
-	appVersion = "1.0.0"
+	appName = "MQTT Home Automation"
 )
 
 type Application struct {
@@ -46,8 +49,8 @@ type Application struct {
 func main() {
 	flag.Parse()
 
-	if *version {
-		log.Printf("%s version %s", appName, appVersion)
+	if *showVersion {
+		log.Printf("%s version %s (built %s)", appName, version, buildDate)
 		return
 	}
 
@@ -88,7 +91,7 @@ func NewApplication(configPath string) (*Application, error) {
 
 	// Setup logger
 	logger := log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
-	logger.Printf("Starting %s %s", appName, appVersion)
+	logger.Printf("Starting %s %s", appName, version)
 	logger.Printf("Loaded configuration from: %s", configPath)
 
 	// Create context for graceful shutdown
@@ -125,8 +128,8 @@ func (a *Application) initializeComponents() error {
 	a.strategyEngine = strategy.NewEngine(a.logger)
 
 	// Load strategies from database
-	if err := a.loadStrategies(); err != nil {
-		a.logger.Printf("Warning: Failed to load strategies: %v", err)
+	if loadErr := a.loadStrategies(); loadErr != nil {
+		a.logger.Printf("Warning: Failed to load strategies: %v", loadErr)
 	}
 
 	// Initialize topic manager
@@ -142,13 +145,13 @@ func (a *Application) initializeComponents() error {
 	a.mqttClient.SetTopicManager(a.topicManager)
 
 	// Load topics from database
-	if err := a.loadTopics(); err != nil {
-		a.logger.Printf("Warning: Failed to load topics: %v", err)
+	if loadErr := a.loadTopics(); loadErr != nil {
+		a.logger.Printf("Warning: Failed to load topics: %v", loadErr)
 	}
 
 	// Initialize system topics
-	if err := a.topicManager.InitializeSystemTopics(a.config.SystemTopics); err != nil {
-		return err
+	if initErr := a.topicManager.InitializeSystemTopics(a.config.SystemTopics); initErr != nil {
+		return initErr
 	}
 
 	// Initialize web server
@@ -229,7 +232,7 @@ func (a *Application) Start() error {
 
 	// Emit startup event
 	a.emitSystemEvent("startup", map[string]interface{}{
-		"version": appVersion,
+		"version": version,
 		"config":  a.config,
 	})
 
@@ -249,11 +252,11 @@ func (a *Application) Start() error {
 
 func (a *Application) handleMQTTMessages() {
 	defer a.wg.Done()
-	
+
 	// This would typically involve setting up MQTT message handlers
 	// For now, we'll just log that the handler is running
 	a.logger.Println("MQTT message handler started")
-	
+
 	// Wait for context cancellation
 	<-a.ctx.Done()
 	a.logger.Println("MQTT message handler stopped")
@@ -276,7 +279,7 @@ func (a *Application) setupSignalHandling() {
 		sig := <-sigChan
 		a.logger.Printf("Received signal: %v", sig)
 		a.logger.Println("Initiating graceful shutdown...")
-		
+
 		// Emit shutdown event
 		a.emitSystemEvent("shutdown", map[string]interface{}{
 			"signal": sig.String(),

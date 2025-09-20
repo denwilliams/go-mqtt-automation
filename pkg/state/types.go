@@ -46,7 +46,7 @@ type ExecutionLog struct {
 }
 
 type TopicState struct {
-	Name        string      `db:"name"`
-	Value       interface{} `db:"value"`
-	UpdatedAt   time.Time   `db:"updated_at"`
+	Name      string      `db:"name"`
+	Value     interface{} `db:"value"`
+	UpdatedAt time.Time   `db:"updated_at"`
 }

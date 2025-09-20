@@ -1,3 +1,4 @@
+// Package mqtt provides MQTT client functionality for the home automation system.
 package mqtt
 
 import (
@@ -6,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/denwilliams/go-mqtt-automation/pkg/config"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 type Client struct {
@@ -59,7 +60,7 @@ func (c *Client) Connect() error {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(c.config.Broker)
 	opts.SetClientID(c.config.ClientID)
-	
+
 	if c.config.Username != "" {
 		opts.SetUsername(c.config.Username)
 	}
@@ -108,13 +109,13 @@ func (c *Client) Disconnect() {
 	}
 
 	c.logger.Println("Disconnecting from MQTT broker")
-	
+
 	close(c.stopChan)
-	
+
 	if c.client != nil {
 		c.client.Disconnect(250)
 	}
-	
+
 	c.state = ConnectionStateClosed
 	c.logger.Println("Disconnected from MQTT broker")
 }
@@ -131,7 +132,7 @@ func (c *Client) Subscribe(topic string, handler EventHandler) error {
 
 	token := c.client.Subscribe(topic, 0, nil)
 	token.Wait()
-	
+
 	if token.Error() != nil {
 		delete(c.handlers, topic)
 		return fmt.Errorf("failed to subscribe to topic %s: %w", topic, token.Error())
@@ -153,7 +154,7 @@ func (c *Client) Unsubscribe(topic string) error {
 
 	token := c.client.Unsubscribe(topic)
 	token.Wait()
-	
+
 	if token.Error() != nil {
 		return fmt.Errorf("failed to unsubscribe from topic %s: %w", topic, token.Error())
 	}
@@ -172,7 +173,7 @@ func (c *Client) Publish(topic string, payload []byte, retain bool) error {
 
 	token := c.client.Publish(topic, 0, retain, payload)
 	token.Wait()
-	
+
 	if token.Error() != nil {
 		return fmt.Errorf("failed to publish to topic %s: %w", topic, token.Error())
 	}
@@ -215,7 +216,7 @@ func (c *Client) reconnect() {
 			return
 		case <-time.After(c.reconnectDelay):
 			c.logger.Println("Attempting to reconnect...")
-			
+
 			if err := c.Connect(); err != nil {
 				c.logger.Printf("Reconnection failed: %v", err)
 				// Exponential backoff with max delay
@@ -252,7 +253,7 @@ func (c *Client) onMessage(client mqtt.Client, msg mqtt.Message) {
 
 func (c *Client) handleTopicMessage(event Event) error {
 	c.logger.Printf("Received message on topic %s: %s", event.Topic, string(event.Payload))
-	
+
 	// Notify topic manager if available
 	if c.topicManager != nil {
 		if err := c.topicManager.HandleMQTTMessage(event); err != nil {
@@ -260,7 +261,7 @@ func (c *Client) handleTopicMessage(event Event) error {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -270,18 +271,18 @@ func (c *Client) topicMatches(pattern, topic string) bool {
 	if pattern == topic {
 		return true
 	}
-	
+
 	// Handle single-level wildcard (+)
 	if len(pattern) > 0 && pattern[len(pattern)-1] == '+' {
 		prefix := pattern[:len(pattern)-1]
 		return len(topic) >= len(prefix) && topic[:len(prefix)] == prefix
 	}
-	
+
 	// Handle multi-level wildcard (#)
 	if len(pattern) > 0 && pattern[len(pattern)-1] == '#' {
 		prefix := pattern[:len(pattern)-1]
 		return len(topic) >= len(prefix) && topic[:len(prefix)] == prefix
 	}
-	
+
 	return false
 }

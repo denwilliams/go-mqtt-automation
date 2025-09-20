@@ -17,19 +17,19 @@ import (
 )
 
 type Server struct {
-	config          *config.Config
-	topicManager    *topics.Manager
-	strategyEngine  *strategy.Engine
-	stateManager    *state.Manager
-	mqttClient      *mqtt.Client
-	logger          *log.Logger
-	templates       *template.Template
-	server          *http.Server
+	config         *config.Config
+	topicManager   *topics.Manager
+	strategyEngine *strategy.Engine
+	stateManager   *state.Manager
+	mqttClient     *mqtt.Client
+	logger         *log.Logger
+	templates      *template.Template
+	server         *http.Server
 }
 
-func NewServer(cfg *config.Config, topicManager *topics.Manager, strategyEngine *strategy.Engine, 
+func NewServer(cfg *config.Config, topicManager *topics.Manager, strategyEngine *strategy.Engine,
 	stateManager *state.Manager, mqttClient *mqtt.Client, logger *log.Logger) (*Server, error) {
-	
+
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -58,10 +58,10 @@ func (s *Server) loadTemplates() error {
 		filepath.Join(".", "web", "templates", "*.html"),
 		filepath.Join("..", "web", "templates", "*.html"),
 	}
-	
+
 	var templates *template.Template
 	var err error
-	
+
 	for _, templatePath := range possiblePaths {
 		s.logger.Printf("Attempting to load templates from: %s", templatePath)
 		templates, err = template.New("").Funcs(template.FuncMap{
@@ -69,8 +69,8 @@ func (s *Server) loadTemplates() error {
 				if v == nil {
 					return "null"
 				}
-				b, err := json.Marshal(v)
-				if err != nil {
+				b, jsonErr := json.Marshal(v)
+				if jsonErr != nil {
 					return fmt.Sprintf("%v", v)
 				}
 				return string(b)
@@ -92,7 +92,7 @@ func (s *Server) loadTemplates() error {
 		}
 		s.logger.Printf("Failed to load templates from %s: %v", templatePath, err)
 	}
-	
+
 	// Create a comprehensive fallback template set for development
 	s.logger.Printf("Creating fallback template set")
 	templates = template.New("base").Funcs(template.FuncMap{
@@ -100,8 +100,8 @@ func (s *Server) loadTemplates() error {
 			if v == nil {
 				return "null"
 			}
-			b, err := json.Marshal(v)
-			if err != nil {
+			b, jsonErr := json.Marshal(v)
+			if jsonErr != nil {
 				return fmt.Sprintf("%v", v)
 			}
 			return string(b)
@@ -113,7 +113,7 @@ func (s *Server) loadTemplates() error {
 			return s[:length] + "..."
 		},
 	})
-	
+
 	// Base template
 	baseTemplate := `{{define "base"}}<!DOCTYPE html>
 <html lang="en">
@@ -166,12 +166,12 @@ func (s *Server) loadTemplates() error {
     </div>
 </body>
 </html>{{end}}`
-	
+
 	_, err = templates.Parse(baseTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse base template: %w", err)
 	}
-	
+
 	// Dashboard content template
 	dashboardTemplate := `{{define "content"}}
 <h2>Dashboard</h2>
@@ -197,13 +197,13 @@ func (s *Server) loadTemplates() error {
     <p><strong>Strategies:</strong> {{if .StrategyCount}}{{.StrategyCount}} loaded{{else}}No strategies loaded{{end}}</p>
 </div>
 {{end}}`
-	
+
 	_, err = templates.Parse(dashboardTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse dashboard template: %w", err)
 	}
-	
-	// Topics content template  
+
+	// Topics content template
 	topicsTemplate := `{{define "topics-content"}}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
     <h2>Topics</h2>
@@ -296,7 +296,7 @@ func (s *Server) loadTemplates() error {
 	if err != nil {
 		return fmt.Errorf("failed to parse strategies template: %w", err)
 	}
-	
+
 	s.templates = templates
 	s.logger.Printf("Fallback templates created successfully")
 	return nil
@@ -304,15 +304,15 @@ func (s *Server) loadTemplates() error {
 
 func (s *Server) Start() error {
 	s.setupRoutes()
-	
+
 	address := s.config.GetAddress()
 	s.logger.Printf("Starting web server on %s", address)
-	
+
 	s.server = &http.Server{
 		Addr:    address,
 		Handler: nil, // Uses DefaultServeMux
 	}
-	
+
 	return s.server.ListenAndServe()
 }
 
@@ -345,7 +345,7 @@ func (s *Server) setupRoutes() {
 	http.HandleFunc("/api/topics", s.handleAPITopics)
 	http.HandleFunc("/api/strategies", s.handleAPIStrategies)
 	http.HandleFunc("/api/system/status", s.handleAPISystemStatus)
-	
+
 	// Debug endpoint
 	http.HandleFunc("/debug", s.handleDebug)
 
@@ -359,7 +359,7 @@ func (s *Server) setupStaticFiles() {
 		"./web/static/",
 		"../web/static/",
 	}
-	
+
 	for _, staticPath := range possibleStaticPaths {
 		if _, err := http.Dir(staticPath).Open("style.css"); err == nil {
 			s.logger.Printf("Serving static files from: %s", staticPath)
@@ -367,7 +367,7 @@ func (s *Server) setupStaticFiles() {
 			return
 		}
 	}
-	
+
 	// If no static files found, create a minimal CSS handler
 	s.logger.Printf("No static files found, creating minimal CSS handler")
 	http.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -385,7 +385,7 @@ func (s *Server) renderTemplate(w http.ResponseWriter, templateName string, data
 	}
 
 	s.logger.Printf("Attempting to render template: %s", templateName)
-	
+
 	// Determine the content template name based on the page template
 	var contentTemplateName string
 	switch templateName {
@@ -406,11 +406,11 @@ func (s *Server) renderTemplate(w http.ResponseWriter, templateName string, data
 	default:
 		contentTemplateName = "content" // fallback
 	}
-	
+
 	// Create a custom base template that calls the specific content template
 	baseTemplateWithContent := fmt.Sprintf(`{{define "base-with-content"}}{{template "base" .}}{{end}}
 {{define "content"}}{{template "%s" .}}{{end}}`, contentTemplateName)
-	
+
 	// Parse the dynamic template
 	tempTemplate, err := s.templates.Clone()
 	if err != nil {
@@ -418,14 +418,14 @@ func (s *Server) renderTemplate(w http.ResponseWriter, templateName string, data
 		s.renderFallbackForTemplate(templateName, w, data)
 		return
 	}
-	
+
 	_, err = tempTemplate.Parse(baseTemplateWithContent)
 	if err != nil {
 		s.logger.Printf("Failed to parse dynamic template: %v", err)
 		s.renderFallbackForTemplate(templateName, w, data)
 		return
 	}
-	
+
 	// Execute the base template which now calls the correct content template
 	if err := tempTemplate.ExecuteTemplate(w, "base", data); err != nil {
 		s.logger.Printf("Failed to execute base template for %s: %v", templateName, err)
@@ -449,7 +449,7 @@ func (s *Server) renderFallbackForTemplate(templateName string, w http.ResponseW
 
 func (s *Server) renderFallbackDashboard(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "text/html")
-	
+
 	// Type assert the data to get the dashboard information
 	dashData, ok := data.(DashboardData)
 	if !ok {
@@ -458,7 +458,7 @@ func (s *Server) renderFallbackDashboard(w http.ResponseWriter, data interface{}
 			PageData: PageData{Title: "Dashboard"},
 		}
 	}
-	
+
 	html := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
@@ -516,7 +516,7 @@ func (s *Server) renderFallbackDashboard(w http.ResponseWriter, data interface{}
         </div>
     </div>
 </body>
-</html>`, 
+</html>`,
 		dashData.Title,
 		len(dashData.Topics),
 		dashData.StrategyCount,
@@ -524,13 +524,13 @@ func (s *Server) renderFallbackDashboard(w http.ResponseWriter, data interface{}
 		len(dashData.Topics),
 		dashData.StrategyCount,
 		dashData.SystemStatus)
-	
+
 	fmt.Fprint(w, html)
 }
 
 func (s *Server) renderFallbackTopics(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "text/html")
-	
+
 	// Type assert the data to get the topics information
 	topicsData, ok := data.(TopicsListData)
 	if !ok {
@@ -540,7 +540,7 @@ func (s *Server) renderFallbackTopics(w http.ResponseWriter, data interface{}) {
 			Topics:   make(map[string]topics.Topic),
 		}
 	}
-	
+
 	html := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
@@ -593,7 +593,7 @@ func (s *Server) renderFallbackTopics(w http.ResponseWriter, data interface{}) {
                     <p>No topics configured yet. <a href="/topics/new" class="btn">Create your first topic</a>.</p>
                 </div>`
 			}
-			
+
 			result := ""
 			for name, topic := range topicsData.Topics {
 				topicType := string(topic.Type())
@@ -608,12 +608,12 @@ func (s *Server) renderFallbackTopics(w http.ResponseWriter, data interface{}) {
 						lastValue = lastValue[:100] + "..."
 					}
 				}
-				
+
 				lastUpdated := "Never"
 				if !topic.LastUpdated().IsZero() {
 					lastUpdated = topic.LastUpdated().Format("2006-01-02 15:04:05")
 				}
-				
+
 				result += fmt.Sprintf(`
                 <div class="topic-item">
                     <h4>%s <span class="topic-type topic-type-%s">%s</span></h4>
@@ -626,13 +626,13 @@ func (s *Server) renderFallbackTopics(w http.ResponseWriter, data interface{}) {
 			}
 			return result
 		}())
-	
+
 	fmt.Fprint(w, html)
 }
 
 func (s *Server) renderFallbackStrategies(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "text/html")
-	
+
 	html := `<!DOCTYPE html>
 <html>
 <head>
@@ -663,14 +663,14 @@ func (s *Server) renderFallbackStrategies(w http.ResponseWriter, data interface{
     </div>
 </body>
 </html>`
-	
+
 	fmt.Fprint(w, html)
 }
 
 func (s *Server) renderErrorPage(w http.ResponseWriter, errorMsg string) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK) // Don't return 500, just show the error page
-	
+
 	html := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
@@ -703,24 +703,24 @@ func (s *Server) renderErrorPage(w http.ResponseWriter, errorMsg string) {
     </div>
 </body>
 </html>`, errorMsg)
-	
+
 	fmt.Fprint(w, html)
 }
 
 func (s *Server) handleDebug(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	
+
 	// Get basic system info
 	topics := make(map[string]topics.Topic)
 	if s.topicManager != nil {
 		topics = s.topicManager.ListTopics()
 	}
-	
+
 	strategies := 0
 	if s.strategyEngine != nil {
 		strategies = s.strategyEngine.GetStrategyCount()
 	}
-	
+
 	templateCount := 0
 	templateList := ""
 	if s.templates != nil {
@@ -732,7 +732,7 @@ func (s *Server) handleDebug(w http.ResponseWriter, r *http.Request) {
 			templateList += t.Name()
 		}
 	}
-	
+
 	html := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
@@ -824,7 +824,7 @@ func (s *Server) handleDebug(w http.ResponseWriter, r *http.Request) {
 		len(topics),
 		strategies,
 		s.getSystemStatus())
-	
+
 	fmt.Fprint(w, html)
 }
 

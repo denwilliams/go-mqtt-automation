@@ -170,7 +170,7 @@ func (m *Manager) RestoreTopicStates() (map[string]interface{}, error) {
 
 	// For now, we'll just return an empty map as individual topics
 	// will load their states as needed
-	
+
 	m.logger.Println("Topic states restored")
 	return states, nil
 }

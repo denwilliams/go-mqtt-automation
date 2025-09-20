@@ -23,7 +23,7 @@ func NewJavaScriptExecutor() *JavaScriptExecutor {
 
 func (jse *JavaScriptExecutor) Execute(strategy *Strategy, context ExecutionContext) ExecutionResult {
 	start := time.Now()
-	
+
 	result := ExecutionResult{
 		LogMessages:   []string{},
 		EmittedEvents: []EmitEvent{},
@@ -59,7 +59,7 @@ func (jse *JavaScriptExecutor) Execute(strategy *Strategy, context ExecutionCont
 		if processFunc := vm.Get("process"); processFunc != nil {
 			if fn, ok := goja.AssertFunction(processFunc); ok {
 				contextObj := jse.createContextObject(vm, context)
-				
+
 				// Call the process function directly with the context object
 				processResult, err := fn(goja.Undefined(), contextObj)
 				if err != nil {
@@ -90,7 +90,7 @@ func (jse *JavaScriptExecutor) Execute(strategy *Strategy, context ExecutionCont
 
 func (jse *JavaScriptExecutor) Validate(code string) error {
 	vm := goja.New()
-	
+
 	// Try to compile the code
 	_, err := vm.RunString(code)
 	if err != nil {
@@ -204,7 +204,7 @@ func (jse *JavaScriptExecutor) setupEnvironment(vm *goja.Runtime, context *Execu
 
 func (jse *JavaScriptExecutor) createContextObject(vm *goja.Runtime, context ExecutionContext) *goja.Object {
 	obj := vm.NewObject()
-	
+
 	// Set inputs
 	inputsObj := vm.NewObject()
 	for key, value := range context.InputValues {
@@ -234,4 +234,3 @@ func (jse *JavaScriptExecutor) createContextObject(vm *goja.Runtime, context Exe
 
 	return obj
 }
-

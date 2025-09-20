@@ -13,11 +13,11 @@ type PageData struct {
 
 type DashboardData struct {
 	PageData
-	Topics           map[string]topics.Topic
-	TopicCounts      map[topics.TopicType]int
-	StrategyCount    int
-	SystemStatus     string
-	RecentLogs       []string
+	Topics        map[string]topics.Topic
+	TopicCounts   map[topics.TopicType]int
+	StrategyCount int
+	SystemStatus  string
+	RecentLogs    []string
 }
 
 type TopicsListData struct {

@@ -67,6 +67,40 @@ For detailed database setup instructions, see [DATABASE.md](DATABASE.md).
 
 ## Development
 
+### CI/CD
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+- **Tests**: Automatically run on every commit and pull request
+- **Code Quality**: golangci-lint ensures code quality standards
+- **Releases**: Create a GitHub release to automatically build binaries for:
+  - Linux (AMD64, ARM64, ARM)
+  - macOS (Intel, Apple Silicon)
+  - Windows (AMD64)
+
+### Building
+
+```bash
+# Development build
+make build
+
+# Build with version info
+go build -ldflags="-X main.version=1.0.0 -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" ./cmd/server
+
+# Run tests
+make test
+
+# Run linter
+golangci-lint run
+```
+
+### Creating a Release
+
+1. Create a new tag: `git tag v1.0.0`
+2. Push the tag: `git push origin v1.0.0`
+3. Create a GitHub release from the tag
+4. Binaries will be automatically built and attached to the release
+
 See `TODO.md` for development progress and `PRD.md` for detailed specifications.
 
 ## License

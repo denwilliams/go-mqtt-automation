@@ -1,3 +1,4 @@
+// Package web provides HTTP handlers and web interface for the home automation system.
 package web
 
 import (
@@ -22,7 +23,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if topicsMap == nil {
 		topicsMap = make(map[string]topics.Topic)
 	}
-	
+
 	// Safely get topic counts
 	var topicCounts map[topics.TopicType]int
 	if s.topicManager != nil {
@@ -31,13 +32,13 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if topicCounts == nil {
 		topicCounts = make(map[topics.TopicType]int)
 	}
-	
+
 	// Safely get strategy count
 	var strategyCount int
 	if s.strategyEngine != nil {
 		strategyCount = s.strategyEngine.GetStrategyCount()
 	}
-	
+
 	// Safely get system status
 	systemStatus := s.getSystemStatus()
 	if systemStatus == "" {
@@ -57,7 +58,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	// Log the data for debugging
 	if s.logger != nil {
-		s.logger.Printf("Dashboard data: Topics=%d, Strategies=%d, Status=%s", 
+		s.logger.Printf("Dashboard data: Topics=%d, Strategies=%d, Status=%s",
 			len(data.Topics), data.StrategyCount, data.SystemStatus)
 	}
 
@@ -96,8 +97,8 @@ func (s *Server) handleTopicNew(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		strategies := s.strategyEngine.ListStrategies()
 		strategyList := make([]strategy.Strategy, 0, len(strategies))
-		for _, strat := range strategies {
-			strategyList = append(strategyList, *strat)
+		for _, strategy := range strategies {
+			strategyList = append(strategyList, *strategy)
 		}
 
 		data := TopicEditData{
@@ -140,8 +141,8 @@ func (s *Server) handleTopicEdit(w http.ResponseWriter, r *http.Request) {
 
 		strategies := s.strategyEngine.ListStrategies()
 		strategyList := make([]strategy.Strategy, 0, len(strategies))
-		for _, strat := range strategies {
-			strategyList = append(strategyList, *strat)
+		for _, strategy := range strategies {
+			strategyList = append(strategyList, *strategy)
 		}
 
 		data := TopicEditData{
@@ -411,7 +412,7 @@ func (s *Server) handleSystemConfig(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	topicName := r.URL.Query().Get("topic")
 	maxEntriesStr := r.URL.Query().Get("max")
-	
+
 	maxEntries := 100
 	if maxEntriesStr != "" {
 		if parsed, err := strconv.Atoi(maxEntriesStr); err == nil && parsed > 0 {
@@ -443,7 +444,7 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 // API Endpoints
 func (s *Server) handleAPITopics(w http.ResponseWriter, r *http.Request) {
 	topics := s.topicManager.ListTopics()
-	
+
 	response := make(map[string]interface{})
 	for name, topic := range topics {
 		response[name] = map[string]interface{}{
@@ -459,7 +460,7 @@ func (s *Server) handleAPITopics(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIStrategies(w http.ResponseWriter, r *http.Request) {
 	strategies := s.strategyEngine.ListStrategies()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(strategies)
 }
@@ -469,7 +470,7 @@ func (s *Server) handleAPISystemStatus(w http.ResponseWriter, r *http.Request) {
 		"mqtt_status":    s.getSystemStatus(),
 		"topic_count":    s.topicManager.GetTopicCount(),
 		"strategy_count": s.strategyEngine.GetStrategyCount(),
-		"uptime":        "Unknown", // TODO: Implement uptime tracking
+		"uptime":         "Unknown", // TODO: Implement uptime tracking
 	}
 
 	w.Header().Set("Content-Type", "application/json")

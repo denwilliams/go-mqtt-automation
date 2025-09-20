@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
+	"github.com/denwilliams/go-mqtt-automation/pkg/topics"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
-	"github.com/denwilliams/go-mqtt-automation/pkg/topics"
 )
 
 type SQLiteDatabase struct {
@@ -206,7 +206,7 @@ func (s *SQLiteDatabase) LoadTopic(name string) (interface{}, error) {
 	var config string
 	var lastUpdated, createdAt time.Time
 
-	err := row.Scan(&topicName, &topicType, &inputs, &strategyID, 
+	err := row.Scan(&topicName, &topicType, &inputs, &strategyID,
 		&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &config, &createdAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -239,7 +239,7 @@ func (s *SQLiteDatabase) LoadAllTopics() ([]interface{}, error) {
 		var inputs, strategyID sql.NullString
 		var emitToMQTT, noopUnchanged sql.NullBool
 		var lastValue sql.NullString
-	var config string
+		var config string
 		var lastUpdated, createdAt time.Time
 
 		err := rows.Scan(&topicName, &topicType, &inputs, &strategyID,
@@ -299,10 +299,10 @@ func (s *SQLiteDatabase) buildTopicConfig(name, topicType string, inputs, strate
 
 		return topics.InternalTopicConfig{
 			BaseTopicConfig: baseConfig,
-			Inputs:         parsedInputs,
-			StrategyID:     strategyID.String,
-			EmitToMQTT:     emitToMQTT.Bool,
-			NoOpUnchanged:  noopUnchanged.Bool,
+			Inputs:          parsedInputs,
+			StrategyID:      strategyID.String,
+			EmitToMQTT:      emitToMQTT.Bool,
+			NoOpUnchanged:   noopUnchanged.Bool,
 		}, nil
 
 	case topics.TopicTypeSystem:
@@ -311,8 +311,8 @@ func (s *SQLiteDatabase) buildTopicConfig(name, topicType string, inputs, strate
 
 		return topics.SystemTopicConfig{
 			BaseTopicConfig: baseConfig,
-			Interval:       interval,
-			Cron:           cron,
+			Interval:        interval,
+			Cron:            cron,
 		}, nil
 
 	default:
