@@ -8,10 +8,11 @@ import (
 
 	"github.com/denwilliams/go-mqtt-automation/pkg/config"
 	"github.com/denwilliams/go-mqtt-automation/pkg/mqtt"
+	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
 )
 
 type StrategyExecutor interface {
-	ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error)
+	ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) ([]strategy.EmitEvent, error)
 }
 
 type StateManager interface {
@@ -217,7 +218,7 @@ func (m *Manager) NotifyTopicUpdate(event TopicEvent) error {
 	return nil
 }
 
-func (m *Manager) ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+func (m *Manager) ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) ([]strategy.EmitEvent, error) {
 	if m.strategyExecutor == nil {
 		return nil, fmt.Errorf("strategy executor not configured")
 	}
@@ -345,4 +346,29 @@ func (m *Manager) shouldLogTopicUpdate(topicName string) bool {
 
 	// Default to not logging unknown topics
 	return false
+}
+
+// createOrUpdateExternalTopic creates or updates an external topic with the given value
+func (m *Manager) createOrUpdateExternalTopic(topicName string, value interface{}) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	// Check if topic already exists
+	if existingTopic, exists := m.externalTopics[topicName]; exists {
+		// Update existing external topic
+		return existingTopic.Emit(value)
+	}
+
+	// Create new external topic
+	newTopic := NewExternalTopic(topicName)
+	newTopic.SetManager(m)
+	m.externalTopics[topicName] = newTopic
+
+	// Emit the initial value
+	if err := newTopic.Emit(value); err != nil {
+		return fmt.Errorf("failed to emit to new external topic %s: %w", topicName, err)
+	}
+
+	m.logger.Printf("Created new external topic: %s", topicName)
+	return nil
 }

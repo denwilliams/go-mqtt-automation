@@ -99,15 +99,16 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     'alias',
     'Alias',
     'function process(context) {
-    // Return the first non-null input value
+    // Emit the first non-null input value
     const keys = Object.keys(context.inputs);
     for (const key of keys) {
         const value = context.inputs[key];
         if (value !== null && value !== undefined) {
-            return value;
+            context.emit(value);
+            return;
         }
     }
-    return null;
+    context.emit(null);
 }',
     'javascript',
     '{}'
@@ -120,10 +121,13 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     'Boolean Conversion',
     'function process(context) {
     const keys = Object.keys(context.inputs);
-    if (keys.length === 0) return false;
+    if (keys.length === 0) {
+        context.emit(false);
+        return;
+    }
 
     const value = context.inputs[keys[0]];
-    return Boolean(value);
+    context.emit(Boolean(value));
 }',
     'javascript',
     '{}'
@@ -136,10 +140,13 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     'Logical NOT',
     'function process(context) {
     const keys = Object.keys(context.inputs);
-    if (keys.length === 0) return true;
+    if (keys.length === 0) {
+        context.emit(true);
+        return;
+    }
 
     const value = context.inputs[keys[0]];
-    return !Boolean(value);
+    context.emit(!Boolean(value));
 }',
     'javascript',
     '{}'
@@ -163,7 +170,7 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
         }
     }
 
-    return hasNumeric ? sum : null;
+    context.emit(hasNumeric ? sum : null);
 }',
     'javascript',
     '{}'
@@ -176,14 +183,20 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     'Subtraction',
     'function process(context) {
     const keys = Object.keys(context.inputs);
-    if (keys.length < 2) return null;
+    if (keys.length < 2) {
+        context.emit(null);
+        return;
+    }
 
     const first = Number(context.inputs[keys[0]]);
     const second = Number(context.inputs[keys[1]]);
 
-    if (isNaN(first) || isNaN(second)) return null;
+    if (isNaN(first) || isNaN(second)) {
+        context.emit(null);
+        return;
+    }
 
-    return first - second;
+    context.emit(first - second);
 }',
     'javascript',
     '{}'
@@ -207,7 +220,7 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
         }
     }
 
-    return hasNumeric ? product : null;
+    context.emit(hasNumeric ? product : null);
 }',
     'javascript',
     '{}'
@@ -220,15 +233,19 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     'Logical AND',
     'function process(context) {
     const keys = Object.keys(context.inputs);
-    if (keys.length === 0) return true;
+    if (keys.length === 0) {
+        context.emit(true);
+        return;
+    }
 
     for (const key of keys) {
         if (!Boolean(context.inputs[key])) {
-            return false;
+            context.emit(false);
+            return;
         }
     }
 
-    return true;
+    context.emit(true);
 }',
     'javascript',
     '{}'
@@ -241,15 +258,19 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     'Logical OR',
     'function process(context) {
     const keys = Object.keys(context.inputs);
-    if (keys.length === 0) return false;
+    if (keys.length === 0) {
+        context.emit(false);
+        return;
+    }
 
     for (const key of keys) {
         if (Boolean(context.inputs[key])) {
-            return true;
+            context.emit(true);
+            return;
         }
     }
 
-    return false;
+    context.emit(false);
 }',
     'javascript',
     '{}'
@@ -262,21 +283,25 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     'Pick Field',
     'function process(context) {
     const keys = Object.keys(context.inputs);
-    if (keys.length === 0) return null;
+    if (keys.length === 0) {
+        context.emit(null);
+        return;
+    }
 
     const input = context.inputs[keys[0]];
     const fieldName = context.parameters.field;
 
     if (!fieldName) {
         context.log("Warning: No field parameter specified");
-        return null;
+        context.emit(null);
+        return;
     }
 
     if (typeof input === "object" && input !== null) {
-        return input[fieldName] !== undefined ? input[fieldName] : null;
+        context.emit(input[fieldName] !== undefined ? input[fieldName] : null);
+    } else {
+        context.emit(null);
     }
-
-    return null;
 }',
     'javascript',
     '{"field": ""}'
@@ -289,15 +314,21 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     'Inside Range',
     'function process(context) {
     const keys = Object.keys(context.inputs);
-    if (keys.length === 0) return false;
+    if (keys.length === 0) {
+        context.emit(false);
+        return;
+    }
 
     const value = Number(context.inputs[keys[0]]);
     const min = Number(context.parameters.min || 0);
     const max = Number(context.parameters.max || 100);
 
-    if (isNaN(value)) return false;
+    if (isNaN(value)) {
+        context.emit(false);
+        return;
+    }
 
-    return value >= min && value <= max;
+    context.emit(value >= min && value <= max);
 }',
     'javascript',
     '{"min": 0, "max": 100}'
@@ -310,15 +341,21 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     'Outside Range',
     'function process(context) {
     const keys = Object.keys(context.inputs);
-    if (keys.length === 0) return false;
+    if (keys.length === 0) {
+        context.emit(false);
+        return;
+    }
 
     const value = Number(context.inputs[keys[0]]);
     const min = Number(context.parameters.min || 0);
     const max = Number(context.parameters.max || 100);
 
-    if (isNaN(value)) return false;
+    if (isNaN(value)) {
+        context.emit(false);
+        return;
+    }
 
-    return value < min || value > max;
+    context.emit(value < min || value > max);
 }',
     'javascript',
     '{"min": 0, "max": 100}'
@@ -336,7 +373,7 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     // Flip the boolean value
     const newValue = !Boolean(lastValue);
 
-    return { value: newValue };
+    context.emit({ value: newValue });
 }',
     'javascript',
     '{}'

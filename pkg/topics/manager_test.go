@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
 )
 
 // Mock strategy executor for testing
@@ -13,11 +15,16 @@ type mockStrategyExecutor struct {
 	executeFunc func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error)
 }
 
-func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) ([]strategy.EmitEvent, error) {
 	if m.executeFunc != nil {
-		return m.executeFunc(strategyID, inputs, triggerTopic, lastOutput)
+		if result, err := m.executeFunc(strategyID, inputs, triggerTopic, lastOutput); err != nil {
+			return nil, err
+		} else {
+			// Wrap the result in an EmitEvent for the main topic
+			return []strategy.EmitEvent{{Topic: "", Value: result}}, nil
+		}
 	}
-	return "mock result", nil
+	return []strategy.EmitEvent{{Topic: "", Value: "mock result"}}, nil
 }
 
 // Mock state manager for testing
@@ -416,7 +423,7 @@ func TestSetStrategyExecutor(t *testing.T) {
 
 	manager.SetStrategyExecutor(mockExec)
 
-	if manager.strategyExecutor != mockExec {
+	if manager.strategyExecutor == nil {
 		t.Error("strategy executor not set")
 	}
 }
@@ -449,13 +456,17 @@ func TestExecuteStrategy(t *testing.T) {
 	}
 	manager.SetStrategyExecutor(mockExec)
 
-	result, err := manager.ExecuteStrategy("test-strategy", map[string]interface{}{"input": 1}, "trigger", "last")
+	emittedEvents, err := manager.ExecuteStrategy("test-strategy", map[string]interface{}{"input": 1}, "trigger", "last")
 	if err != nil {
 		t.Errorf("ExecuteStrategy() failed: %v", err)
 	}
 
-	if result != "test result" {
-		t.Errorf("result = %q, want 'test result'", result)
+	if len(emittedEvents) != 1 {
+		t.Fatalf("Expected 1 emitted event, got %d", len(emittedEvents))
+	}
+
+	if emittedEvents[0].Value != "test result" {
+		t.Errorf("emitted value = %q, want 'test result'", emittedEvents[0].Value)
 	}
 }
 

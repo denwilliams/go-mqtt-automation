@@ -101,7 +101,7 @@ func (e *Engine) ListStrategies() map[string]*Strategy {
 	return result
 }
 
-func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) ([]EmitEvent, error) {
 	e.mutex.RLock()
 	strategy, exists := e.strategies[strategyID]
 	if !exists {
@@ -154,7 +154,7 @@ func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{
 		return nil, result.Error
 	}
 
-	return result.Result, nil
+	return result.EmittedEvents, nil
 }
 
 func (e *Engine) ValidateStrategy(strategy *Strategy) error {

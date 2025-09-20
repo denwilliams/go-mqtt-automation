@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
+
+	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
 )
 
 type InternalTopic struct {
@@ -123,13 +126,13 @@ func (it *InternalTopic) ProcessInputs(triggerTopic string) error {
 	}
 
 	// Execute strategy
-	result, err := it.manager.ExecuteStrategy(it.config.StrategyID, inputValues, triggerTopic, it.config.LastValue)
+	emittedEvents, err := it.manager.ExecuteStrategy(it.config.StrategyID, inputValues, triggerTopic, it.config.LastValue)
 	if err != nil {
 		return fmt.Errorf("strategy execution failed: %w", err)
 	}
 
-	// Emit the result
-	return it.Emit(result)
+	// Process all emitted events
+	return it.processEmittedEvents(emittedEvents)
 }
 
 func (it *InternalTopic) emitToMQTT(value interface{}) error {
@@ -166,6 +169,42 @@ func (it *InternalTopic) SetEmitToMQTT(emit bool) {
 
 func (it *InternalTopic) SetNoOpUnchanged(noop bool) {
 	it.config.NoOpUnchanged = noop
+}
+
+func (it *InternalTopic) processEmittedEvents(events []strategy.EmitEvent) error {
+	for _, event := range events {
+		if event.Topic == "" {
+			// Empty topic means main topic (this internal topic)
+			if err := it.Emit(event.Value); err != nil {
+				return fmt.Errorf("failed to emit to main topic: %w", err)
+			}
+		} else {
+			// Handle subtopic emission
+			if err := it.emitToSubtopic(event.Topic, event.Value); err != nil {
+				return fmt.Errorf("failed to emit to subtopic %s: %w", event.Topic, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (it *InternalTopic) emitToSubtopic(topicPath string, value interface{}) error {
+	if it.manager == nil {
+		return fmt.Errorf("manager not available")
+	}
+
+	// Determine the full topic name
+	var fullTopicName string
+	if strings.HasPrefix(topicPath, "/") {
+		// Relative path - append to current topic name
+		fullTopicName = it.config.Name + topicPath
+	} else {
+		// Absolute path - use as is
+		fullTopicName = topicPath
+	}
+
+	// Create or update the subtopic
+	return it.manager.createOrUpdateExternalTopic(fullTopicName, value)
 }
 
 func (it *InternalTopic) SetStrategyID(strategyID string) {

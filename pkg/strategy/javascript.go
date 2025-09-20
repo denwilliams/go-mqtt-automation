@@ -119,12 +119,23 @@ func (jse *JavaScriptExecutor) setupEnvironment(vm *goja.Runtime, context *Execu
 		result.LogMessages = append(result.LogMessages, strings.Join(message, " "))
 	})
 
-	// Set up emit functionality
-	vm.Set("emit", func(topic string, value interface{}) {
-		result.EmittedEvents = append(result.EmittedEvents, EmitEvent{
-			Topic: topic,
-			Value: value,
-		})
+	// Set up emit functionality - supports both 1 and 2 argument patterns
+	vm.Set("emit", func(args ...interface{}) {
+		if len(args) == 1 {
+			// Single argument = emit to main topic (empty path)
+			result.EmittedEvents = append(result.EmittedEvents, EmitEvent{
+				Topic: "", // Empty topic means main topic
+				Value: args[0],
+			})
+		} else if len(args) == 2 {
+			// Two arguments = topic path + value
+			if topicStr, ok := args[0].(string); ok {
+				result.EmittedEvents = append(result.EmittedEvents, EmitEvent{
+					Topic: topicStr,
+					Value: args[1],
+				})
+			}
+		}
 	})
 
 	// Set up utility functions

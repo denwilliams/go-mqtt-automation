@@ -336,11 +336,16 @@ func TestListStrategies(t *testing.T) {
 func TestExecuteStrategy(t *testing.T) {
 	engine := NewEngine(nil)
 
-	// Create mock executor that returns predictable results
+	// Create mock executor that returns predictable EmittedEvents
 	mockExec := &mockExecutor{
 		executeFunc: func(strategy *Strategy, context ExecutionContext) ExecutionResult {
 			return ExecutionResult{
-				Result:        map[string]interface{}{"strategy_id": strategy.ID, "input_count": len(context.InputValues)},
+				EmittedEvents: []EmitEvent{
+					{
+						Topic: "", // Main topic
+						Value: map[string]interface{}{"strategy_id": strategy.ID, "input_count": len(context.InputValues)},
+					},
+				},
 				ExecutionTime: time.Millisecond * 5,
 				LogMessages:   []string{"test log message"},
 			}
@@ -368,14 +373,23 @@ func TestExecuteStrategy(t *testing.T) {
 		"topic2": true,
 	}
 
-	result, err := engine.ExecuteStrategy("test-strategy", inputs, "topic1", nil)
+	emittedEvents, err := engine.ExecuteStrategy("test-strategy", inputs, "topic1", nil)
 	if err != nil {
 		t.Fatalf("ExecuteStrategy() failed: %v", err)
 	}
 
-	resultMap, ok := result.(map[string]interface{})
+	if len(emittedEvents) != 1 {
+		t.Fatalf("Expected 1 emitted event, got %d", len(emittedEvents))
+	}
+
+	event := emittedEvents[0]
+	if event.Topic != "" {
+		t.Errorf("Expected main topic (empty string), got %q", event.Topic)
+	}
+
+	resultMap, ok := event.Value.(map[string]interface{})
 	if !ok {
-		t.Fatal("result is not a map")
+		t.Fatal("event value is not a map")
 	}
 
 	if resultMap["strategy_id"] != "test-strategy" {
