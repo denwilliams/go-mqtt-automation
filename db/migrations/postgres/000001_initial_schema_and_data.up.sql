@@ -5,6 +5,19 @@
 -- SCHEMA CREATION
 -- ============================================================================
 
+-- Strategies table: stores JavaScript code and configuration
+CREATE TABLE IF NOT EXISTS strategies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL,
+    language TEXT DEFAULT 'javascript' CHECK (language IN ('javascript', 'lua', 'go-template')),
+    parameters TEXT, -- JSON
+    max_inputs INTEGER DEFAULT NULL, -- NULL means unlimited
+    default_input_names TEXT, -- JSON array of default input names
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Topics table: stores all topic configurations
 CREATE TABLE IF NOT EXISTS topics (
     name TEXT PRIMARY KEY,
@@ -19,19 +32,6 @@ CREATE TABLE IF NOT EXISTS topics (
     config TEXT, -- JSON configuration
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (strategy_id) REFERENCES strategies(id)
-);
-
--- Strategies table: stores JavaScript code and configuration
-CREATE TABLE IF NOT EXISTS strategies (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    code TEXT NOT NULL,
-    language TEXT DEFAULT 'javascript' CHECK (language IN ('javascript', 'lua', 'go-template')),
-    parameters TEXT, -- JSON
-    max_inputs INTEGER DEFAULT NULL, -- NULL means unlimited
-    default_input_names TEXT, -- JSON array of default input names
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- State table: stores arbitrary key-value state data
