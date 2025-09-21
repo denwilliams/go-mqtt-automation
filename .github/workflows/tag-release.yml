@@ -1,0 +1,41 @@
+name: Create Release from Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        body: |
+          ## 🚀 Release ${{ github.ref_name }}
+
+          This release was automatically created from tag `${{ github.ref_name }}`.
+
+          ### 📝 Next Steps
+
+          1. Edit this release to add release notes
+          2. Use the "Release" workflow to build and upload binaries
+
+          ### 🔧 Building Binaries
+
+          To build and upload release assets, go to the [Actions tab](../../actions/workflows/release.yml) and manually trigger the "Release" workflow for this release.
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
