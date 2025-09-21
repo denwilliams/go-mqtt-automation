@@ -1,0 +1,33 @@
+[Unit]
+Description=MQTT Home Automation Server
+Documentation=https://github.com/denwilliams/go-mqtt-automation
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=automation
+Group=automation
+WorkingDirectory=/opt/automation
+ExecStart=/opt/automation/automation-server -config /opt/automation/config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/automation /var/lib/automation
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=512M
+
+# Environment
+Environment=LOG_LEVEL=info
+
+[Install]
+WantedBy=multi-user.target

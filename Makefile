@@ -108,6 +108,15 @@ db-reset:
 	rm -f automation.db
 	@echo "Database reset complete. Run 'make run' to recreate with migrations."
 
+# Migration generation (template-based multi-database support)
+migrations:
+	go run ./cmd/migrate-gen/ -dir db/migrations
+	@echo "Generated database-specific migrations for SQLite, PostgreSQL, and MySQL"
+
+migrations-clean:
+	rm -rf db/migrations/sqlite db/migrations/postgres db/migrations/mysql
+	@echo "Cleaned generated migration files"
+
 db-migrate: build
 	@echo "Running database migrations..."
 	@if [ -f automation.db ]; then \
@@ -185,6 +194,7 @@ help:
 	@echo "  setup       - Set up development environment"
 	@echo "  deps        - Download dependencies"
 	@echo "  migrate     - Run database migrations"
+	@echo "  migrations  - Generate database-specific migrations from templates"
 	@echo "  format      - Format Go code"
 	@echo "  lint        - Run linter"
 	@echo "  clean       - Clean build artifacts"
