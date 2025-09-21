@@ -68,8 +68,8 @@ func ProcessMigrationTemplate(templatePath, dbType, outputPath string) error {
 	}
 
 	// Create output directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
+	if mkdirErr := os.MkdirAll(filepath.Dir(outputPath), 0755); mkdirErr != nil {
+		return fmt.Errorf("failed to create output directory: %w", mkdirErr)
 	}
 
 	// Create output file

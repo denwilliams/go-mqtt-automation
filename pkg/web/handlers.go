@@ -268,10 +268,8 @@ func (s *Server) handleTopicCreate(w http.ResponseWriter, r *http.Request) {
 		topic.SetNoOpUnchanged(noOpUnchanged)
 
 		// Set input names if provided
-		if inputNames != nil {
-			for topicPath, inputName := range inputNames {
-				topic.SetInputName(topicPath, inputName)
-			}
+		for topicPath, inputName := range inputNames {
+			topic.SetInputName(topicPath, inputName)
 		}
 
 		// Save to database
