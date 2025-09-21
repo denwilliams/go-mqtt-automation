@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,9 @@ import (
 	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
 	"github.com/denwilliams/go-mqtt-automation/pkg/topics"
 )
+
+// Pre-compiled regex for strategy ID validation
+var strategyIDPattern = regexp.MustCompile(`^[a-z0-9_]+$`)
 
 // Dashboard
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -95,19 +99,57 @@ func (s *Server) handleTopicsList(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTopicNew(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
+		// Extract strategy ID from URL path
+		path := strings.TrimPrefix(r.URL.Path, "/topics/new")
+		path = strings.TrimPrefix(path, "/")
+		strategyID := strings.TrimSuffix(path, "/")
+
+		// If no strategy ID provided, show strategy selection page
+		if strategyID == "" {
+			strategies := s.strategyEngine.ListStrategies()
+			strategyList := make([]strategy.Strategy, 0, len(strategies))
+			for _, strategy := range strategies {
+				strategyList = append(strategyList, *strategy)
+			}
+
+			data := struct {
+				Title      string
+				Error      string
+				Success    string
+				Strategies []strategy.Strategy
+			}{
+				Title:      "Create New Topic - Select Strategy",
+				Error:      "",
+				Success:    "",
+				Strategies: strategyList,
+			}
+
+			s.renderTemplate(w, "topic_strategy_select.html", data)
+			return
+		}
+
+		// Strategy ID provided, show topic creation form with pre-selected strategy
 		strategies := s.strategyEngine.ListStrategies()
 		strategyList := make([]strategy.Strategy, 0, len(strategies))
 		for _, strategy := range strategies {
 			strategyList = append(strategyList, *strategy)
 		}
 
+		// Verify the strategy exists
+		selectedStrategy, err := s.strategyEngine.GetStrategy(strategyID)
+		if err != nil {
+			http.Error(w, "Strategy not found", http.StatusNotFound)
+			return
+		}
+
 		data := TopicEditData{
 			PageData: PageData{
 				Title: "Create New Topic",
 			},
-			Topic:      nil,
-			Strategies: strategyList,
-			IsNew:      true,
+			Topic:            nil,
+			Strategies:       strategyList,
+			SelectedStrategy: selectedStrategy,
+			IsNew:            true,
 		}
 
 		s.renderTemplate(w, "topic_edit.html", data)
@@ -121,6 +163,7 @@ func (s *Server) handleTopicNew(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
+
 
 func (s *Server) handleTopicEdit(w http.ResponseWriter, r *http.Request) {
 	// Extract topic name from URL
@@ -177,6 +220,7 @@ func (s *Server) handleTopicCreate(w http.ResponseWriter, r *http.Request) {
 	strategyID := r.FormValue("strategy_id")
 	emitToMQTT := r.FormValue("emit_to_mqtt") == "on"
 	noOpUnchanged := r.FormValue("noop_unchanged") == "on"
+	inputNamesJSON := r.FormValue("input_names")
 
 	// Clean up inputs
 	cleanInputs := make([]string, 0)
@@ -184,6 +228,30 @@ func (s *Server) handleTopicCreate(w http.ResponseWriter, r *http.Request) {
 		input = strings.TrimSpace(input)
 		if input != "" {
 			cleanInputs = append(cleanInputs, input)
+		}
+	}
+
+	// Parse input names JSON
+	var inputNames map[string]string
+	if inputNamesJSON != "" && inputNamesJSON != "{}" {
+		if err := json.Unmarshal([]byte(inputNamesJSON), &inputNames); err != nil {
+			http.Error(w, "Invalid input names JSON", http.StatusBadRequest)
+			return
+		}
+
+		// Validate that all input names keys exist in cleanInputs
+		for topicPath := range inputNames {
+			found := false
+			for _, input := range cleanInputs {
+				if input == topicPath {
+					found = true
+					break
+				}
+			}
+			if !found {
+				http.Error(w, fmt.Sprintf("Input name key '%s' does not match any input topic", topicPath), http.StatusBadRequest)
+				return
+			}
 		}
 	}
 
@@ -199,6 +267,13 @@ func (s *Server) handleTopicCreate(w http.ResponseWriter, r *http.Request) {
 	if topic != nil {
 		topic.SetEmitToMQTT(emitToMQTT)
 		topic.SetNoOpUnchanged(noOpUnchanged)
+
+		// Set input names if provided
+		if inputNames != nil {
+			for topicPath, inputName := range inputNames {
+				topic.SetInputName(topicPath, inputName)
+			}
+		}
 
 		// Save to database
 		config := topic.GetConfig()
@@ -325,14 +400,55 @@ func (s *Server) handleStrategyCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get custom ID or generate one
+	customID := strings.TrimSpace(r.FormValue("id"))
+	var strategyID string
+
+	if customID != "" {
+		// Validate custom ID format
+		if !isValidStrategyID(customID) {
+			http.Error(w, "Invalid strategy ID. Use only lowercase letters, numbers, and underscores.", http.StatusBadRequest)
+			return
+		}
+
+		// Check if ID already exists
+		if _, err := s.strategyEngine.GetStrategy(customID); err == nil {
+			http.Error(w, "Strategy ID already exists. Please choose a different ID.", http.StatusBadRequest)
+			return
+		}
+
+		strategyID = customID
+	} else {
+		// Generate fallback ID
+		strategyID = fmt.Sprintf("strategy_%d", time.Now().Unix())
+	}
+
 	strat := &strategy.Strategy{
-		ID:         fmt.Sprintf("strategy_%d", time.Now().Unix()),
+		ID:         strategyID,
 		Name:       r.FormValue("name"),
 		Code:       r.FormValue("code"),
 		Language:   r.FormValue("language"),
 		Parameters: make(map[string]interface{}),
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
+	}
+
+	// Parse max inputs
+	if maxInputsStr := r.FormValue("max_inputs"); maxInputsStr != "" {
+		if maxInputs, err := strconv.Atoi(maxInputsStr); err == nil {
+			strat.MaxInputs = maxInputs
+		}
+	}
+
+	// Parse default input names JSON if provided
+	if defaultInputNamesJSON := r.FormValue("default_input_names"); defaultInputNamesJSON != "" {
+		defaultInputNamesJSON = strings.TrimSpace(defaultInputNamesJSON)
+		if defaultInputNamesJSON != "[]" && defaultInputNamesJSON != "null" {
+			if err := json.Unmarshal([]byte(defaultInputNamesJSON), &strat.DefaultInputNames); err != nil {
+				http.Error(w, "Invalid default input names JSON", http.StatusBadRequest)
+				return
+			}
+		}
 	}
 
 	// Parse parameters JSON if provided
@@ -358,8 +474,67 @@ func (s *Server) handleStrategyCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleStrategyUpdate(w http.ResponseWriter, r *http.Request, strategyID string) {
-	// Similar to handleStrategyCreate but for updates
-	// Implementation would update existing strategy
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	// Get existing strategy
+	existingStrategy, err := s.strategyEngine.GetStrategy(strategyID)
+	if err != nil {
+		http.Error(w, "Strategy not found", http.StatusNotFound)
+		return
+	}
+
+	// Update strategy fields
+	strat := &strategy.Strategy{
+		ID:        strategyID,
+		Name:      r.FormValue("name"),
+		Code:      r.FormValue("code"),
+		Language:  r.FormValue("language"),
+		CreatedAt: existingStrategy.CreatedAt, // Keep original creation time
+		UpdatedAt: time.Now(),
+	}
+
+	// Parse max inputs
+	if maxInputsStr := r.FormValue("max_inputs"); maxInputsStr != "" {
+		if maxInputs, err := strconv.Atoi(maxInputsStr); err == nil {
+			strat.MaxInputs = maxInputs
+		}
+	}
+
+	// Parse default input names JSON if provided
+	if defaultInputNamesJSON := r.FormValue("default_input_names"); defaultInputNamesJSON != "" {
+		defaultInputNamesJSON = strings.TrimSpace(defaultInputNamesJSON)
+		if defaultInputNamesJSON != "[]" && defaultInputNamesJSON != "null" {
+			if err := json.Unmarshal([]byte(defaultInputNamesJSON), &strat.DefaultInputNames); err != nil {
+				http.Error(w, "Invalid default input names JSON", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	// Parse parameters JSON if provided
+	if params := r.FormValue("parameters"); params != "" {
+		if err := json.Unmarshal([]byte(params), &strat.Parameters); err != nil {
+			http.Error(w, "Invalid parameters JSON", http.StatusBadRequest)
+			return
+		}
+	} else {
+		strat.Parameters = make(map[string]interface{})
+	}
+
+	if err := s.strategyEngine.UpdateStrategy(strat); err != nil {
+		s.logger.Printf("Failed to update strategy: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to update strategy: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Save to database
+	if err := s.stateManager.SaveStrategy(strat); err != nil {
+		s.logger.Printf("Failed to save strategy to database: %v", err)
+	}
+
 	http.Redirect(w, r, "/strategies", http.StatusSeeOther)
 }
 
@@ -475,4 +650,14 @@ func (s *Server) handleAPISystemStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(status)
+}
+
+// isValidStrategyID validates that a strategy ID follows the required pattern
+func isValidStrategyID(id string) bool {
+	if id == "" {
+		return false
+	}
+
+	// Use pre-compiled regex pattern
+	return strategyIDPattern.MatchString(id)
 }

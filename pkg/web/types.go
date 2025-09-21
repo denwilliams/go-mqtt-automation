@@ -28,9 +28,15 @@ type TopicsListData struct {
 
 type TopicEditData struct {
 	PageData
-	Topic      interface{}
+	Topic            interface{}
+	Strategies       []strategy.Strategy
+	SelectedStrategy *strategy.Strategy
+	IsNew            bool
+}
+
+type TopicStrategySelectData struct {
+	PageData
 	Strategies []strategy.Strategy
-	IsNew      bool
 }
 
 type StrategiesListData struct {

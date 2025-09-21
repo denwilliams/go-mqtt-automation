@@ -312,17 +312,19 @@ func (p *PostgreSQLDatabase) SaveStrategy(strategy *strategy.Strategy) error {
 
 func (p *PostgreSQLDatabase) LoadStrategy(id string) (*strategy.Strategy, error) {
 	query := `
-		SELECT id, name, code, language, parameters, created_at, updated_at
-		FROM strategies 
+		SELECT id, name, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
+		FROM strategies
 		WHERE id = $1
 	`
 
 	var strat strategy.Strategy
 	var parametersJSON string
+	var maxInputs sql.NullInt64
+	var defaultInputNamesJSON sql.NullString
 
 	err := p.db.QueryRow(query, id).Scan(
 		&strat.ID, &strat.Name, &strat.Code, &strat.Language,
-		&parametersJSON, &strat.CreatedAt, &strat.UpdatedAt,
+		&parametersJSON, &maxInputs, &defaultInputNamesJSON, &strat.CreatedAt, &strat.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -335,12 +337,24 @@ func (p *PostgreSQLDatabase) LoadStrategy(id string) (*strategy.Strategy, error)
 		return nil, fmt.Errorf("failed to unmarshal parameters: %w", err)
 	}
 
+	// Handle max_inputs
+	if maxInputs.Valid {
+		strat.MaxInputs = int(maxInputs.Int64)
+	}
+
+	// Handle default_input_names
+	if defaultInputNamesJSON.Valid && defaultInputNamesJSON.String != "" {
+		if err := json.Unmarshal([]byte(defaultInputNamesJSON.String), &strat.DefaultInputNames); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal default_input_names: %w", err)
+		}
+	}
+
 	return &strat, nil
 }
 
 func (p *PostgreSQLDatabase) LoadAllStrategies() ([]*strategy.Strategy, error) {
 	query := `
-		SELECT id, name, code, language, parameters, created_at, updated_at
+		SELECT id, name, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
 		FROM strategies
 		ORDER BY name
 	`
@@ -355,10 +369,12 @@ func (p *PostgreSQLDatabase) LoadAllStrategies() ([]*strategy.Strategy, error) {
 	for rows.Next() {
 		var strat strategy.Strategy
 		var parametersJSON string
+		var maxInputs sql.NullInt64
+		var defaultInputNamesJSON sql.NullString
 
 		err := rows.Scan(
 			&strat.ID, &strat.Name, &strat.Code, &strat.Language,
-			&parametersJSON, &strat.CreatedAt, &strat.UpdatedAt,
+			&parametersJSON, &maxInputs, &defaultInputNamesJSON, &strat.CreatedAt, &strat.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan strategy: %w", err)
@@ -366,6 +382,18 @@ func (p *PostgreSQLDatabase) LoadAllStrategies() ([]*strategy.Strategy, error) {
 
 		if err := json.Unmarshal([]byte(parametersJSON), &strat.Parameters); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal parameters for strategy %s: %w", strat.ID, err)
+		}
+
+		// Handle max_inputs
+		if maxInputs.Valid {
+			strat.MaxInputs = int(maxInputs.Int64)
+		}
+
+		// Handle default_input_names
+		if defaultInputNamesJSON.Valid && defaultInputNamesJSON.String != "" {
+			if err := json.Unmarshal([]byte(defaultInputNamesJSON.String), &strat.DefaultInputNames); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal default_input_names for strategy %s: %w", strat.ID, err)
+			}
 		}
 
 		strategies = append(strategies, &strat)

@@ -33,10 +33,11 @@ type BaseTopicConfig struct {
 
 type InternalTopicConfig struct {
 	BaseTopicConfig
-	Inputs        []string `json:"inputs" db:"inputs"`
-	StrategyID    string   `json:"strategy_id" db:"strategy_id"`
-	EmitToMQTT    bool     `json:"emit_to_mqtt" db:"emit_to_mqtt"`
-	NoOpUnchanged bool     `json:"noop_unchanged" db:"noop_unchanged"`
+	Inputs        []string          `json:"inputs" db:"inputs"`
+	InputNames    map[string]string `json:"input_names,omitempty" db:"input_names"`
+	StrategyID    string            `json:"strategy_id" db:"strategy_id"`
+	EmitToMQTT    bool              `json:"emit_to_mqtt" db:"emit_to_mqtt"`
+	NoOpUnchanged bool              `json:"noop_unchanged" db:"noop_unchanged"`
 }
 
 type SystemTopicConfig struct {

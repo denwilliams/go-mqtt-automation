@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/denwilliams/go-mqtt-automation/pkg/config"
 	"github.com/denwilliams/go-mqtt-automation/pkg/mqtt"
@@ -13,6 +14,7 @@ import (
 
 type StrategyExecutor interface {
 	ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) ([]strategy.EmitEvent, error)
+	GetStrategy(strategyID string) (*strategy.Strategy, error)
 }
 
 type StateManager interface {
@@ -60,7 +62,9 @@ func (m *Manager) SetMQTTClient(client *mqtt.Client) {
 
 func (m *Manager) AddExternalTopic(name string) *ExternalTopic {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	defer func() {
+		m.mutex.Unlock()
+	}()
 
 	if topic, exists := m.externalTopics[name]; exists {
 		return topic
@@ -78,10 +82,22 @@ func (m *Manager) AddExternalTopic(name string) *ExternalTopic {
 
 func (m *Manager) AddInternalTopic(name string, inputs []string, strategyID string) (*InternalTopic, error) {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	defer func() {
+		m.mutex.Unlock()
+	}()
 
 	if _, exists := m.topics[name]; exists {
 		return nil, fmt.Errorf("topic %s already exists", name)
+	}
+
+	// Validate max inputs if strategy executor is available
+	if m.strategyExecutor != nil {
+		if strategy, err := m.strategyExecutor.GetStrategy(strategyID); err == nil {
+			// Only validate if MaxInputs is set (non-zero), 0 or NULL means unlimited
+			if strategy.MaxInputs > 0 && len(inputs) > strategy.MaxInputs {
+				return nil, fmt.Errorf("strategy %s allows maximum %d inputs, but %d inputs provided", strategyID, strategy.MaxInputs, len(inputs))
+			}
+		}
 	}
 
 	topic := NewInternalTopic(name, inputs, strategyID)
@@ -96,7 +112,9 @@ func (m *Manager) AddInternalTopic(name string, inputs []string, strategyID stri
 
 func (m *Manager) AddSystemTopic(name string, config map[string]interface{}) *SystemTopic {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	defer func() {
+		m.mutex.Unlock()
+	}()
 
 	if topic, exists := m.systemTopics[name]; exists {
 		return topic
@@ -114,7 +132,9 @@ func (m *Manager) AddSystemTopic(name string, config map[string]interface{}) *Sy
 
 func (m *Manager) RemoveTopic(name string) error {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	defer func() {
+		m.mutex.Unlock()
+	}()
 
 	topic, exists := m.topics[name]
 	if !exists {
@@ -138,35 +158,45 @@ func (m *Manager) RemoveTopic(name string) error {
 
 func (m *Manager) GetTopic(name string) Topic {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	defer func() {
+		m.mutex.RUnlock()
+	}()
 
 	return m.topics[name]
 }
 
 func (m *Manager) GetExternalTopic(name string) *ExternalTopic {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	defer func() {
+		m.mutex.RUnlock()
+	}()
 
 	return m.externalTopics[name]
 }
 
 func (m *Manager) GetInternalTopic(name string) *InternalTopic {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	defer func() {
+		m.mutex.RUnlock()
+	}()
 
 	return m.internalTopics[name]
 }
 
 func (m *Manager) GetSystemTopic(name string) *SystemTopic {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	defer func() {
+		m.mutex.RUnlock()
+	}()
 
 	return m.systemTopics[name]
 }
 
 func (m *Manager) ListTopics() map[string]Topic {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	defer func() {
+		m.mutex.RUnlock()
+	}()
 
 	result := make(map[string]Topic)
 	for name, topic := range m.topics {
@@ -177,7 +207,9 @@ func (m *Manager) ListTopics() map[string]Topic {
 
 func (m *Manager) ListTopicsByType(topicType TopicType) map[string]Topic {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	defer func() {
+		m.mutex.RUnlock()
+	}()
 
 	result := make(map[string]Topic)
 	for name, topic := range m.topics {
@@ -189,24 +221,30 @@ func (m *Manager) ListTopicsByType(topicType TopicType) map[string]Topic {
 }
 
 func (m *Manager) NotifyTopicUpdate(event TopicEvent) error {
+	// Find all internal topics that depend on this topic (including wildcard matches)
+	m.mutex.RLock()
+
 	// Only log MQTT inputs (external topics) and internal topic outputs
 	// Skip noisy system topics like tickers, schedulers, etc.
-	if m.shouldLogTopicUpdate(event.TopicName) {
-		m.logger.Printf("Topic update: %s = %v", event.TopicName, event.Value)
-	}
+	// Note: We call shouldLogTopicUpdate while holding the lock to avoid double-locking
+	shouldLog := m.shouldLogTopicUpdateUnsafe(event.TopicName)
 
-	// Find all internal topics that depend on this topic
-	m.mutex.RLock()
 	dependents := make([]*InternalTopic, 0)
 	for _, internalTopic := range m.internalTopics {
 		for _, input := range internalTopic.GetInputs() {
-			if input == event.TopicName {
+			// Check for exact match or wildcard match
+			if input == event.TopicName || mqtt.TopicMatches(input, event.TopicName) {
 				dependents = append(dependents, internalTopic)
 				break
 			}
 		}
 	}
 	m.mutex.RUnlock()
+
+	// Log the topic update if needed (do this after releasing the lock)
+	if shouldLog {
+		m.logger.Printf("Topic update: %s = %v", event.TopicName, event.Value)
+	}
 
 	// Process dependent topics
 	for _, dependent := range dependents {
@@ -261,7 +299,9 @@ func (m *Manager) InitializeSystemTopics(cfg config.SystemTopicsConfig) error {
 
 func (m *Manager) StartSystemTopics() error {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	defer func() {
+		m.mutex.RUnlock()
+	}()
 
 	for _, topic := range m.systemTopics {
 		if topic.config.Interval != "" && !topic.IsRunning() {
@@ -276,7 +316,9 @@ func (m *Manager) StartSystemTopics() error {
 
 func (m *Manager) StopSystemTopics() {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	defer func() {
+		m.mutex.RUnlock()
+	}()
 
 	for _, topic := range m.systemTopics {
 		if topic.IsRunning() {
@@ -298,7 +340,9 @@ func (m *Manager) HandleMQTTMessage(event mqtt.Event) error {
 
 func (m *Manager) GetTopicCount() map[TopicType]int {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	defer func() {
+		m.mutex.RUnlock()
+	}()
 
 	counts := map[TopicType]int{
 		TopicTypeExternal: len(m.externalTopics),
@@ -309,12 +353,8 @@ func (m *Manager) GetTopicCount() map[TopicType]int {
 	return counts
 }
 
-// shouldLogTopicUpdate determines if a topic update should be logged
-func (m *Manager) shouldLogTopicUpdate(topicName string) bool {
-	// Always log internal topics (these are the automation logic outputs)
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
+// shouldLogTopicUpdateUnsafe determines if a topic update should be logged (assumes lock is already held)
+func (m *Manager) shouldLogTopicUpdateUnsafe(topicName string) bool {
 	if _, exists := m.internalTopics[topicName]; exists {
 		return true
 	}
@@ -328,7 +368,8 @@ func (m *Manager) shouldLogTopicUpdate(topicName string) bool {
 	if _, exists := m.systemTopics[topicName]; exists {
 		// Log important system events, but skip heartbeat
 		if strings.HasPrefix(topicName, "system/events/") {
-			return topicName != "system/events/heartbeat"
+			result := topicName != "system/events/heartbeat"
+			return result
 		}
 
 		// Skip noisy system topics like tickers
@@ -348,25 +389,96 @@ func (m *Manager) shouldLogTopicUpdate(topicName string) bool {
 	return false
 }
 
-// createOrUpdateExternalTopic creates or updates an external topic with the given value
-func (m *Manager) createOrUpdateExternalTopic(topicName string, value interface{}) error {
+// createOrUpdateDerivedTopic creates or updates a derived internal topic (from strategy emissions)
+func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	// Check if topic already exists as an internal topic
+	if existingTopic, exists := m.internalTopics[topicName]; exists {
+		// Update existing derived internal topic directly
+		existingTopic.config.LastValue = value
+		existingTopic.config.LastUpdated = time.Now()
+
+		// Save state to database
+		if err := m.SaveTopicState(topicName, value); err != nil {
+			return fmt.Errorf("failed to save topic state: %w", err)
+		}
+
+		return nil
+	}
+
+	// Check if topic exists in the main topics map
+	if _, exists := m.topics[topicName]; exists {
+		// Topic exists but not as internal - this shouldn't happen for derived topics
+		return fmt.Errorf("topic %s already exists as a different type", topicName)
+	}
+
+	// Create new derived internal topic (read-only, no strategy)
+	newTopic := &InternalTopic{
+		config: InternalTopicConfig{
+			BaseTopicConfig: BaseTopicConfig{
+				Name:        topicName,
+				Type:        TopicTypeInternal,
+				LastValue:   value,
+				LastUpdated: time.Now(),
+				CreatedAt:   time.Now(),
+			},
+			Inputs:        []string{}, // Derived topics have no inputs
+			StrategyID:    "",         // Derived topics have no strategy
+			EmitToMQTT:    false,      // Default to not emitting derived topics to MQTT
+			NoOpUnchanged: false,
+		},
+		manager: m,
+	}
+
+	m.internalTopics[topicName] = newTopic
+	m.topics[topicName] = newTopic
+
+	// Save state to database
+	if err := m.SaveTopicState(topicName, value); err != nil {
+		return fmt.Errorf("failed to save topic state for %s: %w", topicName, err)
+	}
+
+	m.logger.Printf("Created new derived internal topic: %s", topicName)
+	return nil
+}
+
+// createOrUpdateExternalTopic creates or updates an external topic with the given value
+func (m *Manager) createOrUpdateExternalTopic(topicName string, value interface{}) error {
+	m.mutex.Lock()
+	defer func() {
+		m.mutex.Unlock()
+	}()
+
 	// Check if topic already exists
 	if existingTopic, exists := m.externalTopics[topicName]; exists {
-		// Update existing external topic
-		return existingTopic.Emit(value)
+		// Update existing external topic directly without triggering notifications
+		// to prevent recursive calls to NotifyTopicUpdate
+		existingTopic.config.LastValue = value
+		existingTopic.config.LastUpdated = time.Now()
+
+		// Save state to database
+		if err := m.SaveTopicState(topicName, value); err != nil {
+			return fmt.Errorf("failed to save topic state: %w", err)
+		}
+
+		return nil
 	}
 
 	// Create new external topic
 	newTopic := NewExternalTopic(topicName)
 	newTopic.SetManager(m)
 	m.externalTopics[topicName] = newTopic
+	m.topics[topicName] = newTopic
 
-	// Emit the initial value
-	if err := newTopic.Emit(value); err != nil {
-		return fmt.Errorf("failed to emit to new external topic %s: %w", topicName, err)
+	// Set the initial value directly without triggering notifications
+	newTopic.config.LastValue = value
+	newTopic.config.LastUpdated = time.Now()
+
+	// Save state to database
+	if err := m.SaveTopicState(topicName, value); err != nil {
+		return fmt.Errorf("failed to save topic state for %s: %w", topicName, err)
 	}
 
 	m.logger.Printf("Created new external topic: %s", topicName)

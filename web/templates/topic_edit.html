@@ -14,22 +14,41 @@
 
             <div class="form-group">
                 <label for="inputs">Input Topics</label>
-                <textarea id="inputs" name="inputs" class="form-control" rows="4" 
+                <textarea id="inputs" name="inputs" class="form-control" rows="4"
                           placeholder="Enter one topic per line, e.g.:&#10;sensors/temperature/living-room&#10;sensors/temperature/bedroom">{{if not .IsNew}}{{range .Topic.GetInputs}}{{.}}
 {{end}}{{end}}</textarea>
                 <small>List the topics this internal topic should listen to (one per line)</small>
             </div>
 
             <div class="form-group">
+                <label for="input_names">Input Names (Optional)</label>
+                <textarea id="input_names" name="input_names" class="form-control" rows="4"
+                          placeholder="Optional: Give friendly names to inputs in JSON format:&#10;{&#10;  &quot;sensors/temperature/living-room&quot;: &quot;living_temp&quot;,&#10;  &quot;sensors/temperature/bedroom&quot;: &quot;bedroom_temp&quot;&#10;}">{{if and (not .IsNew) .Topic.GetInputNames (gt (len .Topic.GetInputNames) 0)}}{{toJSON .Topic.GetInputNames}}{{else}}{}{{end}}</textarea>
+                <small>Map topic paths to friendly names for easier access in strategy code (e.g., context.inputs['living_temp'])</small>
+            </div>
+
+            <div class="form-group">
                 <label for="strategy_id">Strategy *</label>
+                {{if .SelectedStrategy}}
+                <div class="form-control-static">
+                    <strong>{{.SelectedStrategy.Name}}</strong> ({{.SelectedStrategy.Language}})
+                    {{if gt .SelectedStrategy.MaxInputs 0}} - Max {{.SelectedStrategy.MaxInputs}} inputs{{else}} - Unlimited inputs{{end}}
+                    <input type="hidden" id="strategy_id" name="strategy_id" value="{{.SelectedStrategy.ID}}">
+                    <br><small><a href="/topics/new">Choose a different strategy</a></small>
+                </div>
+                {{else}}
                 <select id="strategy_id" name="strategy_id" class="form-control" required>
                     <option value="">Select a strategy...</option>
                     {{range .Strategies}}
-                    <option value="{{.ID}}" {{if and (not $.IsNew) (eq $.Topic.GetStrategyID .ID)}}selected{{end}}>
-                        {{.Name}} ({{.Language}})
+                    <option value="{{.ID}}"
+                            data-max-inputs="{{.MaxInputs}}"
+                            data-default-input-names="{{toJSON .DefaultInputNames}}"
+                            {{if and (not $.IsNew) (eq $.Topic.GetStrategyID .ID)}}selected{{end}}>
+                        {{.Name}} ({{.Language}}){{if gt .MaxInputs 0}} - Max {{.MaxInputs}} inputs{{else}} - Unlimited inputs{{end}}
                     </option>
                     {{end}}
                 </select>
+                {{end}}
                 <small>The strategy defines how this topic processes its inputs</small>
             </div>
 
@@ -93,4 +112,67 @@
     </div>
 </div>
 {{end}}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const strategySelect = document.getElementById('strategy_id');
+    const inputNamesTextarea = document.getElementById('input_names');
+    const inputsTextarea = document.getElementById('inputs');
+
+    // Default input names for pre-selected strategy
+    {{if .SelectedStrategy}}
+    const selectedStrategyDefaultInputNames = {{toJSON .SelectedStrategy.DefaultInputNames}};
+    {{end}}
+
+    function updateInputNamesFromStrategy() {
+        let defaultInputNames = null;
+
+        // Get default input names from selected strategy or dropdown
+        {{if .SelectedStrategy}}
+        defaultInputNames = selectedStrategyDefaultInputNames;
+        {{else}}
+        if (strategySelect && strategySelect.selectedIndex >= 0) {
+            const selectedOption = strategySelect.options[strategySelect.selectedIndex];
+            if (selectedOption.value !== '') {
+                const defaultInputNamesStr = selectedOption.getAttribute('data-default-input-names');
+                if (defaultInputNamesStr && defaultInputNamesStr !== '[]' && defaultInputNamesStr !== 'null') {
+                    try {
+                        defaultInputNames = JSON.parse(defaultInputNamesStr);
+                    } catch (e) {
+                        console.error('Error parsing default input names:', e);
+                        return;
+                    }
+                }
+            }
+        }
+        {{end}}
+
+        if (defaultInputNames && defaultInputNames.length > 0) {
+            const inputTopics = inputsTextarea.value.split('\n').map(s => s.trim()).filter(s => s !== '');
+
+            if (inputTopics.length > 0) {
+                // Create input names mapping using the first N topics
+                const inputNamesObj = {};
+                for (let i = 0; i < Math.min(defaultInputNames.length, inputTopics.length); i++) {
+                    inputNamesObj[inputTopics[i]] = defaultInputNames[i];
+                }
+
+                inputNamesTextarea.value = JSON.stringify(inputNamesObj, null, 2);
+            }
+        }
+    }
+
+    // Add event listeners only if elements exist
+    if (strategySelect) {
+        strategySelect.addEventListener('change', updateInputNamesFromStrategy);
+    }
+    if (inputsTextarea) {
+        inputsTextarea.addEventListener('blur', updateInputNamesFromStrategy);
+        // Also trigger on initial load if strategy is pre-selected
+        {{if .SelectedStrategy}}
+        setTimeout(updateInputNamesFromStrategy, 100);
+        {{end}}
+    }
+});
+</script>
 {{end}}

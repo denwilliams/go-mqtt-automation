@@ -4,6 +4,7 @@ package mqtt
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -266,23 +267,66 @@ func (c *Client) handleTopicMessage(event Event) error {
 }
 
 // topicMatches checks if a topic matches a pattern with MQTT wildcards
+// Supports:
+// + (single-level wildcard): matches exactly one level
+// # (multi-level wildcard): matches zero or more levels (only at end)
 func (c *Client) topicMatches(pattern, topic string) bool {
-	// Simple wildcard matching - in a real implementation you'd want more sophisticated matching
+	return TopicMatches(pattern, topic)
+}
+
+// TopicMatches checks if a topic matches a pattern with MQTT wildcards
+// This is a standalone function that can be used throughout the codebase
+func TopicMatches(pattern, topic string) bool {
+	// Exact match
 	if pattern == topic {
 		return true
 	}
 
-	// Handle single-level wildcard (+)
-	if len(pattern) > 0 && pattern[len(pattern)-1] == '+' {
-		prefix := pattern[:len(pattern)-1]
-		return len(topic) >= len(prefix) && topic[:len(prefix)] == prefix
+	// Split into segments
+	patternSegments := strings.Split(pattern, "/")
+	topicSegments := strings.Split(topic, "/")
+
+	return matchSegments(patternSegments, topicSegments)
+}
+
+func matchSegments(patternSegments, topicSegments []string) bool {
+	patternLen := len(patternSegments)
+	topicLen := len(topicSegments)
+
+	// Handle empty patterns or topics
+	if patternLen == 0 || topicLen == 0 {
+		return patternLen == 0 && topicLen == 0
 	}
 
-	// Handle multi-level wildcard (#)
-	if len(pattern) > 0 && pattern[len(pattern)-1] == '#' {
-		prefix := pattern[:len(pattern)-1]
-		return len(topic) >= len(prefix) && topic[:len(prefix)] == prefix
+	// Handle multi-level wildcard (#) - must be last segment
+	if patternLen > 0 && patternSegments[patternLen-1] == "#" {
+		// # matches zero or more levels
+		if patternLen == 1 {
+			return true // # matches everything
+		}
+		// Match all segments before the #
+		if topicLen < patternLen-1 {
+			return false
+		}
+		for i := 0; i < patternLen-1; i++ {
+			if patternSegments[i] != "+" && patternSegments[i] != topicSegments[i] {
+				return false
+			}
+		}
+		return true
 	}
 
-	return false
+	// For patterns without #, lengths must match
+	if patternLen != topicLen {
+		return false
+	}
+
+	// Match each segment
+	for i := 0; i < patternLen; i++ {
+		if patternSegments[i] != "+" && patternSegments[i] != topicSegments[i] {
+			return false
+		}
+	}
+
+	return true
 }

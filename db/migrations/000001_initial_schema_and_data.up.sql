@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS topics (
     name TEXT PRIMARY KEY,
     type TEXT NOT NULL CHECK (type IN ('internal', 'external', 'system')),
     inputs TEXT, -- JSON array of input topic names
+    input_names TEXT, -- JSON object mapping input names to topic paths
     strategy_id TEXT,
     emit_to_mqtt BOOLEAN DEFAULT false,
     noop_unchanged BOOLEAN DEFAULT false,
@@ -27,6 +28,8 @@ CREATE TABLE IF NOT EXISTS strategies (
     code TEXT NOT NULL,
     language TEXT DEFAULT 'javascript' CHECK (language IN ('javascript', 'lua', 'go-template')),
     parameters TEXT, -- JSON
+    max_inputs INTEGER DEFAULT NULL, -- NULL means unlimited
+    default_input_names TEXT, -- JSON array of default input names
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -94,7 +97,7 @@ INSERT INTO topics (name, type, emit_to_mqtt, config) VALUES
 -- ============================================================================
 
 -- Alias strategy - echoes value from one or more inputs
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'alias',
     'Alias',
@@ -111,49 +114,43 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     context.emit(null);
 }',
     'javascript',
-    '{}'
+    '{}',
+    NULL,
+    NULL
 );
 
 -- Boolean strategy - true if truthy, false otherwise
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'bool',
     'Boolean Conversion',
     'function process(context) {
-    const keys = Object.keys(context.inputs);
-    if (keys.length === 0) {
-        context.emit(false);
-        return;
-    }
-
-    const value = context.inputs[keys[0]];
+    const value = context.inputs.value;
     context.emit(Boolean(value));
 }',
     'javascript',
-    '{}'
+    '{}',
+    1,
+    '["value"]'
 );
 
 -- Not strategy - logical NOT operation
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'not',
     'Logical NOT',
     'function process(context) {
-    const keys = Object.keys(context.inputs);
-    if (keys.length === 0) {
-        context.emit(true);
-        return;
-    }
-
-    const value = context.inputs[keys[0]];
+    const value = context.inputs.value;
     context.emit(!Boolean(value));
 }',
     'javascript',
-    '{}'
+    '{}',
+    1,
+    '["value"]'
 );
 
 -- Add strategy - sum all numeric inputs
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'add',
     'Addition',
@@ -173,37 +170,35 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     context.emit(hasNumeric ? sum : null);
 }',
     'javascript',
-    '{}'
+    '{}',
+    NULL,
+    NULL
 );
 
 -- Subtract strategy - subtract second input from first
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'subtract',
     'Subtraction',
     'function process(context) {
-    const keys = Object.keys(context.inputs);
-    if (keys.length < 2) {
+    const minuend = Number(context.inputs.minuend);
+    const subtrahend = Number(context.inputs.subtrahend);
+
+    if (isNaN(minuend) || isNaN(subtrahend)) {
         context.emit(null);
         return;
     }
 
-    const first = Number(context.inputs[keys[0]]);
-    const second = Number(context.inputs[keys[1]]);
-
-    if (isNaN(first) || isNaN(second)) {
-        context.emit(null);
-        return;
-    }
-
-    context.emit(first - second);
+    context.emit(minuend - subtrahend);
 }',
     'javascript',
-    '{}'
+    '{}',
+    2,
+    '["minuend", "subtrahend"]'
 );
 
 -- Multiply strategy - multiply all numeric inputs
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'multiply',
     'Multiplication',
@@ -223,11 +218,13 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     context.emit(hasNumeric ? product : null);
 }',
     'javascript',
-    '{}'
+    '{}',
+    NULL,
+    NULL
 );
 
 -- And strategy - true if all inputs are truthy
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'and',
     'Logical AND',
@@ -248,11 +245,13 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     context.emit(true);
 }',
     'javascript',
-    '{}'
+    '{}',
+    NULL,
+    NULL
 );
 
 -- Or strategy - true if any input is truthy
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'or',
     'Logical OR',
@@ -273,22 +272,18 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     context.emit(false);
 }',
     'javascript',
-    '{}'
+    '{}',
+    NULL,
+    NULL
 );
 
 -- Pick strategy - returns the value of a named field from the input object
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'pick',
     'Pick Field',
     'function process(context) {
-    const keys = Object.keys(context.inputs);
-    if (keys.length === 0) {
-        context.emit(null);
-        return;
-    }
-
-    const input = context.inputs[keys[0]];
+    const input = context.inputs.object;
     const fieldName = context.parameters.field;
 
     if (!fieldName) {
@@ -304,22 +299,18 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     }
 }',
     'javascript',
-    '{"field": ""}'
+    '{"field": ""}',
+    1,
+    '["object"]'
 );
 
 -- Inside strategy - true if value is between min and max (inclusive)
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'inside',
     'Inside Range',
     'function process(context) {
-    const keys = Object.keys(context.inputs);
-    if (keys.length === 0) {
-        context.emit(false);
-        return;
-    }
-
-    const value = Number(context.inputs[keys[0]]);
+    const value = Number(context.inputs.value);
     const min = Number(context.parameters.min || 0);
     const max = Number(context.parameters.max || 100);
 
@@ -331,22 +322,18 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     context.emit(value >= min && value <= max);
 }',
     'javascript',
-    '{"min": 0, "max": 100}'
+    '{"min": 0, "max": 100}',
+    1,
+    '["value"]'
 );
 
 -- Outside strategy - true if value is outside min and max range
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'outside',
     'Outside Range',
     'function process(context) {
-    const keys = Object.keys(context.inputs);
-    if (keys.length === 0) {
-        context.emit(false);
-        return;
-    }
-
-    const value = Number(context.inputs[keys[0]]);
+    const value = Number(context.inputs.value);
     const min = Number(context.parameters.min || 0);
     const max = Number(context.parameters.max || 100);
 
@@ -358,11 +345,13 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     context.emit(value < min || value > max);
 }',
     'javascript',
-    '{"min": 0, "max": 100}'
+    '{"min": 0, "max": 100}',
+    1,
+    '["value"]'
 );
 
 -- Toggle strategy - flip the value each event
-INSERT INTO strategies (id, name, code, language, parameters) VALUES
+INSERT INTO strategies (id, name, code, language, parameters, max_inputs, default_input_names) VALUES
 (
     'toggle',
     'Toggle',
@@ -376,5 +365,7 @@ INSERT INTO strategies (id, name, code, language, parameters) VALUES
     context.emit({ value: newValue });
 }',
     'javascript',
-    '{}'
+    '{}',
+    NULL,
+    NULL
 );

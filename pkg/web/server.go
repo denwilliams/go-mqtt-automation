@@ -297,6 +297,119 @@ func (s *Server) loadTemplates() error {
 		return fmt.Errorf("failed to parse strategies template: %w", err)
 	}
 
+	// Topic strategy selection content template
+	topicStrategySelectTemplate := `{{define "topic-strategy-select-content"}}
+<h2>Create New Topic - Select Strategy</h2>
+<div class="card">
+    <p>Choose the strategy that will process inputs for your new topic:</p>
+    {{if .Strategies}}
+    <div style="display: grid; gap: 15px; margin: 20px 0;">
+        {{range .Strategies}}
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;">
+            <h4>{{.Name}}</h4>
+            <p><strong>Language:</strong> {{.Language}}</p>
+            <p><strong>Max Inputs:</strong> {{if gt .MaxInputs 0}}{{.MaxInputs}}{{else}}Unlimited{{end}}</p>
+            {{if .DefaultInputNames}}
+            <p><strong>Suggested Input Names:</strong> {{range $i, $name := .DefaultInputNames}}{{if $i}}, {{end}}"{{$name}}"{{end}}</p>
+            {{end}}
+            <div style="margin-bottom: 10px;">
+                <small><strong>Code Preview:</strong></small>
+                <pre style="font-size: 12px; max-height: 100px; overflow: hidden; background: #f1f1f1; padding: 8px; border-radius: 3px;">{{if gt (len .Code) 200}}{{slice .Code 0 200}}...{{else}}{{.Code}}{{end}}</pre>
+            </div>
+            <a href="/topics/new/{{.ID}}" class="btn">Use This Strategy</a>
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <p>No strategies available. <a href="/strategies/new" class="btn">Create a strategy first</a>.</p>
+    {{end}}
+    <div style="margin-top: 20px;">
+        <a href="/topics" class="btn" style="background: #6c757d;">Cancel</a>
+        <a href="/strategies/new" class="btn" style="margin-left: 10px;">Create New Strategy</a>
+    </div>
+</div>
+{{end}}`
+
+	_, err = templates.Parse(topicStrategySelectTemplate)
+	if err != nil {
+		return fmt.Errorf("failed to parse topic strategy select template: %w", err)
+	}
+
+	// Topic edit content template
+	topicEditTemplate := `{{define "topic-edit-content"}}
+<h2>{{if .IsNew}}Create New Topic{{else}}Edit Topic{{end}}{{if .SelectedStrategy}} with {{.SelectedStrategy.Name}} Strategy{{end}}</h2>
+
+<div class="card">
+    <form method="POST" action="{{if .IsNew}}/topics/new{{else}}/topics/edit/{{.Topic.Name}}{{end}}">
+        <div style="margin-bottom: 15px;">
+            <label for="name"><strong>Topic Name:</strong></label>
+            <input type="text" id="name" name="name" value="{{if .Topic}}{{.Topic.Name}}{{end}}"
+                   {{if not .IsNew}}readonly{{end}}
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" required>
+            <small>Use a descriptive name like 'bedroom_temperature_alert' or 'car_battery_status'</small>
+        </div>
+
+        {{if .SelectedStrategy}}
+        <input type="hidden" name="strategy_id" value="{{.SelectedStrategy.ID}}">
+        <div style="margin-bottom: 15px;">
+            <label><strong>Strategy:</strong></label>
+            <div style="background: #e7f3ff; padding: 10px; border-radius: 4px;">
+                <strong>{{.SelectedStrategy.Name}}</strong> ({{.SelectedStrategy.Language}})
+                {{if .SelectedStrategy.DefaultInputNames}}
+                <br><small>Suggested inputs: {{range $i, $name := .SelectedStrategy.DefaultInputNames}}{{if $i}}, {{end}}"{{$name}}"{{end}}</small>
+                {{end}}
+            </div>
+        </div>
+        {{else if .Strategies}}
+        <div style="margin-bottom: 15px;">
+            <label for="strategy_id"><strong>Strategy:</strong></label>
+            <select id="strategy_id" name="strategy_id" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" required>
+                <option value="">Select a strategy...</option>
+                {{range .Strategies}}
+                <option value="{{.ID}}" {{if and $.Topic (eq $.Topic.GetStrategyID .ID)}}selected{{end}}>{{.Name}} ({{.Language}})</option>
+                {{end}}
+            </select>
+        </div>
+        {{end}}
+
+        <div style="margin-bottom: 15px;">
+            <label for="inputs"><strong>Input Topics:</strong></label>
+            <textarea id="inputs" name="inputs" rows="4"
+                      style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
+                      placeholder="Enter one topic per line, e.g.:&#10;teslamate/cars/1/+&#10;sensibo/status/+&#10;home/temperature">{{if .Topic}}{{range .Topic.GetInputs}}{{.}}
+{{end}}{{end}}</textarea>
+            <small>Enter MQTT topic patterns, one per line. Use + for single-level wildcards, # for multi-level wildcards.</small>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label>
+                <input type="checkbox" name="emit_to_mqtt" {{if and .Topic .Topic.ShouldEmitToMQTT}}checked{{end}}>
+                <strong>Emit to MQTT</strong>
+            </label>
+            <br><small>When checked, this topic's output will be published to MQTT</small>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label>
+                <input type="checkbox" name="noop_unchanged" {{if and .Topic .Topic.IsNoOpUnchanged}}checked{{end}}>
+                <strong>Skip Unchanged Values</strong>
+            </label>
+            <br><small>When checked, the topic won't emit if the new value is the same as the previous value</small>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn">{{if .IsNew}}Create Topic{{else}}Update Topic{{end}}</button>
+            <a href="/topics" class="btn" style="background: #6c757d; margin-left: 10px;">Cancel</a>
+        </div>
+    </form>
+</div>
+{{end}}`
+
+	_, err = templates.Parse(topicEditTemplate)
+	if err != nil {
+		return fmt.Errorf("failed to parse topic edit template: %w", err)
+	}
+
 	s.templates = templates
 	s.logger.Printf("Fallback templates created successfully")
 	return nil
@@ -332,6 +445,7 @@ func (s *Server) setupRoutes() {
 	http.HandleFunc("/", s.handleDashboard)
 	http.HandleFunc("/topics", s.handleTopicsList)
 	http.HandleFunc("/topics/new", s.handleTopicNew)
+	http.HandleFunc("/topics/new/", s.handleTopicNew)
 	http.HandleFunc("/topics/edit/", s.handleTopicEdit)
 	http.HandleFunc("/topics/delete/", s.handleTopicDelete)
 	http.HandleFunc("/strategies", s.handleStrategiesList)
@@ -378,6 +492,8 @@ func (s *Server) setupStaticFiles() {
 }
 
 func (s *Server) renderTemplate(w http.ResponseWriter, templateName string, data interface{}) {
+	// TODO: this is an AI generated mess. Needs some human love and direction.
+
 	if s.templates == nil {
 		s.logger.Printf("Templates not loaded when trying to render %s", templateName)
 		http.Error(w, "Templates not loaded", http.StatusInternalServerError)
@@ -385,6 +501,7 @@ func (s *Server) renderTemplate(w http.ResponseWriter, templateName string, data
 	}
 
 	s.logger.Printf("Attempting to render template: %s", templateName)
+
 
 	// Determine the content template name based on the page template
 	var contentTemplateName string
@@ -403,6 +520,8 @@ func (s *Server) renderTemplate(w http.ResponseWriter, templateName string, data
 		contentTemplateName = "topic-edit-content"
 	case "strategy_edit.html":
 		contentTemplateName = "strategy-edit-content"
+	case "topic_strategy_select.html":
+		contentTemplateName = "topic-strategy-select-content"
 	default:
 		contentTemplateName = "content" // fallback
 	}

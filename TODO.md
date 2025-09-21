@@ -1,5 +1,7 @@
 # MQTT Home Automation System - Development TODO
 
+THE UI IS JANKY AND NEEDS IMPROVEMENT
+
 ## Project Overview
 Building a Go-based home automation system that processes MQTT events and enables custom internal topics with configurable strategies.
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/denwilliams/go-mqtt-automation/pkg/mqtt"
 	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
 )
 
@@ -26,6 +27,7 @@ func NewInternalTopic(name string, inputs []string, strategyID string) *Internal
 				Config:      make(map[string]interface{}),
 			},
 			Inputs:        inputs,
+			InputNames:    make(map[string]string),
 			StrategyID:    strategyID,
 			EmitToMQTT:    false,
 			NoOpUnchanged: false,
@@ -114,14 +116,42 @@ func (it *InternalTopic) ProcessInputs(triggerTopic string) error {
 		return fmt.Errorf("topic manager not set")
 	}
 
-	// Collect input values
+	// Collect input values using named inputs if available
 	inputValues := make(map[string]interface{})
 	for _, inputTopic := range it.config.Inputs {
-		topic := it.manager.GetTopic(inputTopic)
-		if topic != nil {
-			inputValues[inputTopic] = topic.LastValue()
+		var value interface{}
+		var actualTopic string
+
+		// Check if this is a wildcard pattern that matches the trigger topic
+		if inputTopic != triggerTopic && mqtt.TopicMatches(inputTopic, triggerTopic) {
+			// This is a wildcard match - use the triggering topic's value
+			topic := it.manager.GetTopic(triggerTopic)
+			if topic != nil {
+				value = topic.LastValue()
+			} else {
+				value = nil
+			}
+			actualTopic = triggerTopic
 		} else {
-			inputValues[inputTopic] = nil
+			// Exact match - use the input topic directly
+			topic := it.manager.GetTopic(inputTopic)
+			if topic != nil {
+				value = topic.LastValue()
+			} else {
+				value = nil
+			}
+			actualTopic = inputTopic
+		}
+
+		// Use named input if available, otherwise use actual topic path
+		if it.config.InputNames != nil {
+			if inputName, exists := it.config.InputNames[inputTopic]; exists {
+				inputValues[inputName] = value
+			} else {
+				inputValues[actualTopic] = value
+			}
+		} else {
+			inputValues[actualTopic] = value
 		}
 	}
 
@@ -203,8 +233,8 @@ func (it *InternalTopic) emitToSubtopic(topicPath string, value interface{}) err
 		fullTopicName = topicPath
 	}
 
-	// Create or update the subtopic
-	return it.manager.createOrUpdateExternalTopic(fullTopicName, value)
+	// Create or update the subtopic as a derived internal topic
+	return it.manager.createOrUpdateDerivedTopic(fullTopicName, value)
 }
 
 func (it *InternalTopic) SetStrategyID(strategyID string) {
@@ -224,7 +254,28 @@ func (it *InternalTopic) RemoveInput(inputTopic string) {
 	for i, existing := range it.config.Inputs {
 		if existing == inputTopic {
 			it.config.Inputs = append(it.config.Inputs[:i], it.config.Inputs[i+1:]...)
+			// Also remove from input names if exists
+			if it.config.InputNames != nil {
+				delete(it.config.InputNames, inputTopic)
+			}
 			return
 		}
+	}
+}
+
+func (it *InternalTopic) SetInputName(inputTopic, inputName string) {
+	if it.config.InputNames == nil {
+		it.config.InputNames = make(map[string]string)
+	}
+	it.config.InputNames[inputTopic] = inputName
+}
+
+func (it *InternalTopic) GetInputNames() map[string]string {
+	return it.config.InputNames
+}
+
+func (it *InternalTopic) RemoveInputName(inputTopic string) {
+	if it.config.InputNames != nil {
+		delete(it.config.InputNames, inputTopic)
 	}
 }

@@ -240,7 +240,6 @@ func (a *Application) Start() error {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
-		a.logger.Printf("Starting web server on %s", a.config.GetAddress())
 		if err := a.webServer.Start(); err != nil && err != http.ErrServerClosed {
 			a.logger.Printf("Web server error: %v", err)
 		}

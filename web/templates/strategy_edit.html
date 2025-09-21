@@ -4,10 +4,20 @@
 <div class="card">
     <div class="card-body">
         <form method="post">
+            {{if .IsNew}}
+            <div class="form-group">
+                <label for="id">Strategy ID *</label>
+                <input type="text" id="id" name="id" class="form-control"
+                       value="{{if .Strategy}}{{.Strategy.ID}}{{end}}"
+                       placeholder="e.g., tesla_car, temp_average" pattern="[a-z0-9_]+" required>
+                <small>Unique identifier using lowercase letters, numbers, and underscores only</small>
+            </div>
+            {{end}}
+
             <div class="form-group">
                 <label for="name">Strategy Name *</label>
-                <input type="text" id="name" name="name" class="form-control" 
-                       value="{{if .Strategy}}{{.Strategy.Name}}{{end}}" 
+                <input type="text" id="name" name="name" class="form-control"
+                       value="{{if .Strategy}}{{.Strategy.Name}}{{end}}"
                        placeholder="e.g., Temperature Average" required>
             </div>
 
@@ -42,6 +52,21 @@
                 <textarea id="parameters" name="parameters" class="form-control" rows="3"
                           placeholder='{"threshold": 25, "enabled": true}'>{{if .Strategy}}{{toJSON .Strategy.Parameters}}{{else}}{}{{end}}</textarea>
                 <small>Optional parameters that will be available in context.parameters</small>
+            </div>
+
+            <div class="form-group">
+                <label for="max_inputs">Maximum Input Count</label>
+                <input type="number" id="max_inputs" name="max_inputs" class="form-control" min="0"
+                       value="{{if .Strategy}}{{.Strategy.MaxInputs}}{{else}}0{{end}}"
+                       placeholder="0 for unlimited">
+                <small>Maximum number of input topics this strategy accepts (0 = unlimited)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="default_input_names">Default Input Names (JSON Array)</label>
+                <textarea id="default_input_names" name="default_input_names" class="form-control" rows="2"
+                          placeholder='["value"] or ["minuend", "subtrahend"]'>{{if and .Strategy .Strategy.DefaultInputNames (gt (len .Strategy.DefaultInputNames) 0)}}{{toJSON .Strategy.DefaultInputNames}}{{else}}[]{{end}}</textarea>
+                <small>Default names for inputs to guide users when creating topics (e.g., ["temperature", "humidity"])</small>
             </div>
 
             <div style="margin-top: 2rem;">
