@@ -125,6 +125,17 @@ document.addEventListener('DOMContentLoaded', function() {
     {{end}}
 
     function updateInputNamesFromStrategy() {
+        // Only auto-populate if the input names field is empty or contains default empty JSON
+        const currentInputNames = inputNamesTextarea.value.trim();
+        const isEmptyOrDefault = currentInputNames === '' || currentInputNames === '{}';
+
+        // For existing topics, only auto-populate if the field is empty/default
+        {{if not .IsNew}}
+        if (!isEmptyOrDefault) {
+            return; // Don't overwrite existing custom input names
+        }
+        {{end}}
+
         let defaultInputNames = null;
 
         // Get default input names from selected strategy or dropdown
