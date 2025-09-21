@@ -283,8 +283,60 @@ func (s *Server) handleTopicCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTopicUpdate(w http.ResponseWriter, r *http.Request, topicName string) {
-	// Similar to handleTopicCreate but for updates
-	// Implementation would update existing topic configuration
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	inputs := strings.Split(r.FormValue("inputs"), "\n")
+	strategyID := r.FormValue("strategy_id")
+	emitToMQTT := r.FormValue("emit_to_mqtt") == "on"
+	noOpUnchanged := r.FormValue("noop_unchanged") == "on"
+	inputNamesJSON := r.FormValue("input_names")
+
+	// Clean up inputs
+	cleanInputs := make([]string, 0)
+	for _, input := range inputs {
+		input = strings.TrimSpace(input)
+		if input != "" {
+			cleanInputs = append(cleanInputs, input)
+		}
+	}
+
+	// Parse input names JSON
+	var inputNames map[string]string
+	if inputNamesJSON != "" && inputNamesJSON != "{}" {
+		if err := json.Unmarshal([]byte(inputNamesJSON), &inputNames); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid input names JSON: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Get the existing topic
+	topic := s.topicManager.GetInternalTopic(topicName)
+	if topic == nil {
+		http.Error(w, "Topic not found", http.StatusNotFound)
+		return
+	}
+
+	// Update topic configuration
+	config := topics.InternalTopicConfig{
+		Inputs:        cleanInputs,
+		InputNames:    inputNames,
+		StrategyID:    strategyID,
+		EmitToMQTT:    emitToMQTT,
+		NoOpUnchanged: noOpUnchanged,
+	}
+
+	topic.UpdateConfig(config)
+
+	// Save to database using the topic's config
+	if err := s.stateManager.SaveTopicConfig(topic.GetConfig()); err != nil {
+		s.logger.Printf("Failed to save topic to database: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to save topic to database: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	http.Redirect(w, r, "/topics", http.StatusSeeOther)
 }
 

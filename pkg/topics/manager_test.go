@@ -20,7 +20,30 @@ func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[str
 		if result, err := m.executeFunc(strategyID, inputs, triggerTopic, lastOutput); err != nil {
 			return nil, err
 		} else {
-			// Wrap the result in an EmitEvent for the main topic
+			// Handle special test cases that emit derived topics
+			if strategyID == "parent-strategy" {
+				// Emit derived topic
+				return []strategy.EmitEvent{
+					{Topic: "", Value: result},         // Main topic output
+					{Topic: "/battery", Value: "75%"},  // Derived topic (relative path)
+				}, nil
+			} else if strategyID == "emitter-strategy" {
+				// Emit multiple derived topics
+				if resultMap, ok := result.(map[string]interface{}); ok {
+					events := []strategy.EmitEvent{{Topic: "", Value: result}} // Main topic
+					for key, value := range resultMap {
+						events = append(events, strategy.EmitEvent{Topic: "/" + key, Value: value})
+					}
+					return events, nil
+				}
+			} else if strategyID == "source-strategy" {
+				// Emit to a specific derived topic
+				return []strategy.EmitEvent{
+					{Topic: "", Value: result},         // Main topic output
+					{Topic: "/output", Value: result},  // Derived topic (relative path)
+				}, nil
+			}
+			// Default: just return main topic
 			return []strategy.EmitEvent{{Topic: "", Value: result}}, nil
 		}
 	}
@@ -560,5 +583,265 @@ func TestConcurrentAccess(t *testing.T) {
 	topics := manager.ListTopics()
 	if len(topics) < 1 {
 		t.Error("manager corrupted after concurrent access")
+	}
+}
+
+// TestInternalTopicTriggering tests that internal topics can trigger other internal topics
+func TestInternalTopicTriggering(t *testing.T) {
+	manager := NewManager(log.New(os.Stdout, "test: ", log.LstdFlags))
+
+	// Track execution calls to verify triggering
+	var parentExecuted, childExecuted bool
+	var parentResult, childResult interface{}
+
+	// Mock strategy executor that tracks execution
+	mockExec := &mockStrategyExecutor{
+		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+			switch strategyID {
+			case "parent-strategy":
+				parentExecuted = true
+				parentResult = "parent-output"
+				return parentResult, nil
+			case "child-strategy":
+				childExecuted = true
+				childResult = fmt.Sprintf("child processed: %v", inputs)
+				return childResult, nil
+			default:
+				return nil, fmt.Errorf("unknown strategy: %s", strategyID)
+			}
+		},
+	}
+
+	manager.SetStrategyExecutor(mockExec)
+	manager.SetStateManager(&mockStateManager{})
+
+	// Create parent topic that emits to subtopic
+	_, err := manager.AddInternalTopic("tesla/mycar", []string{"sensors/battery_level"}, "parent-strategy")
+	if err != nil {
+		t.Fatalf("Failed to create parent topic: %v", err)
+	}
+
+	// Create child topic that depends on parent's subtopic
+	_, err = manager.AddInternalTopic("tesla/mycar/battery/alerts", []string{"tesla/mycar/battery"}, "child-strategy")
+	if err != nil {
+		t.Fatalf("Failed to create child topic: %v", err)
+	}
+
+	// Create external topic to trigger the chain
+	batteryTopic := manager.AddExternalTopic("sensors/battery_level")
+	err = batteryTopic.Emit(25.0)
+	if err != nil {
+		t.Fatalf("Failed to emit to external topic: %v", err)
+	}
+
+	// Give some time for async processing
+	time.Sleep(10 * time.Millisecond)
+
+	// Verify parent was executed
+	if !parentExecuted {
+		t.Error("Parent topic was not executed")
+	}
+
+	// Verify child was executed (triggered by parent's subtopic emission)
+	if !childExecuted {
+		t.Error("Child topic was not executed - internal topic triggering failed")
+	}
+
+	// Verify the derived topic was created
+	derivedTopic := manager.GetTopic("tesla/mycar/battery")
+	if derivedTopic == nil {
+		t.Error("Derived topic tesla/mycar/battery was not created")
+	} else {
+		if derivedTopic.LastValue() != "75%" {
+			t.Errorf("Derived topic value = %v, want '75%%'", derivedTopic.LastValue())
+		}
+	}
+}
+
+// TestDerivedTopicCreationAndTriggering tests that derived topics are created and trigger other topics
+func TestDerivedTopicCreationAndTriggering(t *testing.T) {
+	manager := NewManager(log.New(os.Stdout, "test: ", log.LstdFlags))
+
+	// Track which topics were executed and when
+	var executionOrder []string
+	var results map[string]interface{} = make(map[string]interface{})
+
+	mockExec := &mockStrategyExecutor{
+		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+			executionOrder = append(executionOrder, strategyID)
+
+			switch strategyID {
+			case "emitter-strategy":
+				// Strategy that emits to multiple subtopics
+				results[strategyID] = map[string]interface{}{
+					"battery": 75,
+					"speed":   55.5,
+				}
+				return results[strategyID], nil
+			case "battery-monitor":
+				results[strategyID] = fmt.Sprintf("Battery level: %v", inputs)
+				return results[strategyID], nil
+			case "speed-monitor":
+				results[strategyID] = fmt.Sprintf("Speed: %v", inputs)
+				return results[strategyID], nil
+			default:
+				return nil, fmt.Errorf("unknown strategy: %s", strategyID)
+			}
+		},
+	}
+
+	manager.SetStrategyExecutor(mockExec)
+	manager.SetStateManager(&mockStateManager{})
+
+	// Create main topic that emits to multiple subtopics
+	_, err := manager.AddInternalTopic("vehicle/status", []string{"sensors/raw_data"}, "emitter-strategy")
+	if err != nil {
+		t.Fatalf("Failed to create main topic: %v", err)
+	}
+
+	// Create topics that depend on the derived subtopics
+	_, err = manager.AddInternalTopic("vehicle/battery/alerts", []string{"vehicle/status/battery"}, "battery-monitor")
+	if err != nil {
+		t.Fatalf("Failed to create battery monitor: %v", err)
+	}
+
+	_, err = manager.AddInternalTopic("vehicle/speed/alerts", []string{"vehicle/status/speed"}, "speed-monitor")
+	if err != nil {
+		t.Fatalf("Failed to create speed monitor: %v", err)
+	}
+
+	// Trigger the chain
+	dataTopic := manager.AddExternalTopic("sensors/raw_data")
+	err = dataTopic.Emit("test-data")
+	if err != nil {
+		t.Fatalf("Failed to emit to trigger topic: %v", err)
+	}
+
+	// Give time for async processing
+	time.Sleep(20 * time.Millisecond)
+
+	// Verify execution order
+	expectedStrategies := []string{"emitter-strategy", "battery-monitor", "speed-monitor"}
+	if len(executionOrder) != len(expectedStrategies) {
+		t.Errorf("Expected %d strategy executions, got %d: %v", len(expectedStrategies), len(executionOrder), executionOrder)
+	}
+
+	// Verify main strategy executed first
+	if len(executionOrder) > 0 && executionOrder[0] != "emitter-strategy" {
+		t.Errorf("Expected emitter-strategy to execute first, got %s", executionOrder[0])
+	}
+
+	// Verify derived topics exist and have correct values
+	batteryTopic := manager.GetTopic("vehicle/status/battery")
+	speedTopic := manager.GetTopic("vehicle/status/speed")
+
+	if batteryTopic == nil {
+		t.Error("Battery derived topic was not created")
+	} else if batteryTopic.LastValue() != 75 {
+		t.Errorf("Battery topic value = %v, want 75", batteryTopic.LastValue())
+	}
+
+	if speedTopic == nil {
+		t.Error("Speed derived topic was not created")
+	} else if speedTopic.LastValue() != 55.5 {
+		t.Errorf("Speed topic value = %v, want 55.5", speedTopic.LastValue())
+	}
+
+	// Verify dependent topics were triggered
+	batteryAlerts := manager.GetTopic("vehicle/battery/alerts")
+	speedAlerts := manager.GetTopic("vehicle/speed/alerts")
+
+	if batteryAlerts == nil || batteryAlerts.LastValue() == nil {
+		t.Error("Battery alerts topic was not triggered")
+	}
+
+	if speedAlerts == nil || speedAlerts.LastValue() == nil {
+		t.Error("Speed alerts topic was not triggered")
+	}
+}
+
+// TestDerivedTopicUpdateTriggering tests that updates to derived topics trigger dependent topics
+func TestDerivedTopicUpdateTriggering(t *testing.T) {
+	manager := NewManager(log.New(os.Stdout, "test: ", log.LstdFlags))
+
+	var executionCount int
+	var lastInput interface{}
+
+	mockExec := &mockStrategyExecutor{
+		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+			if strategyID == "source-strategy" {
+				return fmt.Sprintf("output-%d", executionCount), nil
+			} else if strategyID == "dependent-strategy" {
+				executionCount++
+				lastInput = inputs
+				return fmt.Sprintf("processed-%d", executionCount), nil
+			}
+			return nil, fmt.Errorf("unknown strategy: %s", strategyID)
+		},
+	}
+
+	manager.SetStrategyExecutor(mockExec)
+	manager.SetStateManager(&mockStateManager{})
+
+	// Create source topic that emits to subtopic
+	_, err := manager.AddInternalTopic("source", []string{"trigger"}, "source-strategy")
+	if err != nil {
+		t.Fatalf("Failed to create source topic: %v", err)
+	}
+
+	// Create dependent topic
+	_, err = manager.AddInternalTopic("dependent", []string{"source/output"}, "dependent-strategy")
+	if err != nil {
+		t.Fatalf("Failed to create dependent topic: %v", err)
+	}
+
+	// First trigger - create external topic and trigger update
+	triggerTopic := manager.AddExternalTopic("trigger")
+	err = triggerTopic.Emit("first")
+	if err != nil {
+		t.Fatalf("Failed to trigger first time: %v", err)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	if executionCount != 1 {
+		t.Errorf("Expected 1 execution after first trigger, got %d", executionCount)
+	}
+
+	// Second trigger - should cause another execution
+	err = triggerTopic.Emit("second")
+	if err != nil {
+		t.Fatalf("Failed to trigger second time: %v", err)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	if executionCount != 2 {
+		t.Errorf("Expected 2 executions after second trigger, got %d", executionCount)
+	}
+
+	// Verify the derived topic was updated
+	derivedTopic := manager.GetTopic("source/output")
+	if derivedTopic == nil {
+		t.Error("Derived topic was not created")
+	} else if derivedTopic.LastValue() != "output-1" {
+		t.Errorf("Derived topic value = %v, want 'output-1'", derivedTopic.LastValue())
+	}
+
+	// Verify dependent topic was triggered with correct input
+	dependentTopic := manager.GetTopic("dependent")
+	if dependentTopic == nil {
+		t.Error("Dependent topic was not created")
+	} else if dependentTopic.LastValue() != "processed-2" {
+		t.Errorf("Dependent topic value = %v, want 'processed-2'", dependentTopic.LastValue())
+	}
+
+	// Verify the dependent strategy received correct input
+	if lastInput == nil {
+		t.Error("Dependent strategy never received input")
+	} else if inputMap, ok := lastInput.(map[string]interface{}); !ok {
+		t.Error("Last input is not a map")
+	} else if inputMap["source/output"] != "output-1" {
+		t.Errorf("Last input source/output = %v, want 'output-1'", inputMap["source/output"])
 	}
 }

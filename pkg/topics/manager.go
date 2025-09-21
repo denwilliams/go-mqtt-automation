@@ -392,21 +392,41 @@ func (m *Manager) shouldLogTopicUpdateUnsafe(topicName string) bool {
 // createOrUpdateDerivedTopic creates or updates a derived internal topic (from strategy emissions)
 func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}) error {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
 
 	// Check if topic already exists as an internal topic
 	if existingTopic, exists := m.internalTopics[topicName]; exists {
 		// Update existing derived internal topic directly
+		previousValue := existingTopic.config.LastValue
 		existingTopic.config.LastValue = value
 		existingTopic.config.LastUpdated = time.Now()
 
 		// Save state to database
 		if err := m.SaveTopicState(topicName, value); err != nil {
+			m.mutex.Unlock()
 			return fmt.Errorf("failed to save topic state: %w", err)
+		}
+
+		// Release lock before triggering other topics to prevent deadlock
+		m.mutex.Unlock()
+
+		// Notify other topics that depend on this derived topic
+		event := TopicEvent{
+			TopicName:     topicName,
+			Value:         value,
+			PreviousValue: previousValue,
+			Timestamp:     time.Now(),
+			TriggerTopic:  topicName,
+		}
+
+		if err := m.NotifyTopicUpdate(event); err != nil {
+			return fmt.Errorf("failed to notify topic update: %w", err)
 		}
 
 		return nil
 	}
+
+	// Continue with topic creation (lock is still held)
+	// Note: We manually unlock before NotifyTopicUpdate to prevent deadlock
 
 	// Check if topic exists in the main topics map
 	if _, exists := m.topics[topicName]; exists {
@@ -441,6 +461,23 @@ func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}
 	}
 
 	m.logger.Printf("Created new derived internal topic: %s", topicName)
+
+	// Release lock before triggering other topics to prevent deadlock
+	m.mutex.Unlock()
+
+	// Notify other topics that might depend on this new derived topic
+	event := TopicEvent{
+		TopicName:     topicName,
+		Value:         value,
+		PreviousValue: nil,
+		Timestamp:     time.Now(),
+		TriggerTopic:  topicName,
+	}
+
+	if err := m.NotifyTopicUpdate(event); err != nil {
+		return fmt.Errorf("failed to notify topic update: %w", err)
+	}
+
 	return nil
 }
 
