@@ -502,7 +502,6 @@ func (s *Server) renderTemplate(w http.ResponseWriter, templateName string, data
 
 	s.logger.Printf("Attempting to render template: %s", templateName)
 
-
 	// Determine the content template name based on the page template
 	var contentTemplateName string
 	switch templateName {

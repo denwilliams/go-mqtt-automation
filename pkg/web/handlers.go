@@ -164,7 +164,6 @@ func (s *Server) handleTopicNew(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
-
 func (s *Server) handleTopicEdit(w http.ResponseWriter, r *http.Request) {
 	// Extract topic name from URL
 	path := strings.TrimPrefix(r.URL.Path, "/topics/edit/")
