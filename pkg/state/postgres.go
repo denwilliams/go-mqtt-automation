@@ -60,7 +60,7 @@ func (p *PostgreSQLDatabase) Migrate() error {
 
 	// Create migrate instance
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://db/migrations",
+		"file://db/migrations/postgres",
 		"postgres", driver)
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)

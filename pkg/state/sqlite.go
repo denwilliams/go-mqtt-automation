@@ -62,7 +62,7 @@ func (s *SQLiteDatabase) Migrate() error {
 
 	// Create migrate instance
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://db/migrations",
+		"file://db/migrations/sqlite",
 		"sqlite3", driver)
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
