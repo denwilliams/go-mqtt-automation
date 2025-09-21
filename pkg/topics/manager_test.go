@@ -27,6 +27,16 @@ func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[str
 	return []strategy.EmitEvent{{Topic: "", Value: "mock result"}}, nil
 }
 
+func (m *mockStrategyExecutor) GetStrategy(strategyID string) (*strategy.Strategy, error) {
+	// Return a mock strategy for testing
+	return &strategy.Strategy{
+		ID:       strategyID,
+		Name:     "Mock Strategy",
+		Code:     "mock code",
+		Language: "javascript",
+	}, nil
+}
+
 // Mock state manager for testing
 type mockStateManager struct {
 	saveFunc func(topicName string, value interface{}) error
