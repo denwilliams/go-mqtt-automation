@@ -24,8 +24,8 @@ func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[str
 			if strategyID == "parent-strategy" {
 				// Emit derived topic
 				return []strategy.EmitEvent{
-					{Topic: "", Value: result},         // Main topic output
-					{Topic: "/battery", Value: "75%"},  // Derived topic (relative path)
+					{Topic: "", Value: result},        // Main topic output
+					{Topic: "/battery", Value: "75%"}, // Derived topic (relative path)
 				}, nil
 			} else if strategyID == "emitter-strategy" {
 				// Emit multiple derived topics
@@ -39,8 +39,8 @@ func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[str
 			} else if strategyID == "source-strategy" {
 				// Emit to a specific derived topic
 				return []strategy.EmitEvent{
-					{Topic: "", Value: result},         // Main topic output
-					{Topic: "/output", Value: result},  // Derived topic (relative path)
+					{Topic: "", Value: result},        // Main topic output
+					{Topic: "/output", Value: result}, // Derived topic (relative path)
 				}, nil
 			}
 			// Default: just return main topic
