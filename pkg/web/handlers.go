@@ -175,10 +175,30 @@ func (s *Server) handleTopicEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "GET" {
-		topic := s.topicManager.GetTopic(topicName)
-		if topic == nil {
+		// Load topic from database to ensure we have the latest data
+		configInterface, err := s.stateManager.LoadTopicConfig(topicName)
+		if err != nil {
+			s.logger.Printf("Failed to load topic config from database: %v", err)
+			http.Error(w, "Failed to load topic config", http.StatusInternalServerError)
+			return
+		}
+		if configInterface == nil {
 			http.Error(w, "Topic not found", http.StatusNotFound)
 			return
+		}
+
+		// Get the in-memory topic and sync it with database data
+		topic := s.topicManager.GetTopic(topicName)
+		if topic == nil {
+			http.Error(w, "Topic not found in memory", http.StatusNotFound)
+			return
+		}
+
+		// If it's an internal topic, update the in-memory config with database data
+		if internalTopic := s.topicManager.GetInternalTopic(topicName); internalTopic != nil {
+			if dbConfig, ok := configInterface.(topics.InternalTopicConfig); ok {
+				internalTopic.UpdateConfig(dbConfig)
+			}
 		}
 
 		strategies := s.strategyEngine.ListStrategies()
@@ -326,6 +346,9 @@ func (s *Server) handleTopicUpdate(w http.ResponseWriter, r *http.Request, topic
 	config.StrategyID = strategyID
 	config.EmitToMQTT = emitToMQTT
 	config.NoOpUnchanged = noOpUnchanged
+
+	// Ensure the Type field is properly set
+	config.Type = topics.TopicTypeInternal
 
 	topic.UpdateConfig(config)
 
