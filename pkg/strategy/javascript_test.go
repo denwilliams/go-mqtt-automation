@@ -352,59 +352,111 @@ func TestJavaScriptExecutor_Execute_WithTrigonometry(t *testing.T) {
 	}
 
 	// Check Math.sin(PI/2) ≈ 1.0
-	if sine, ok := resultMap["sine"].(float64); !ok {
-		t.Error("Math.sin() did not return float64")
-	} else if sine < 0.99 || sine > 1.01 {
-		t.Errorf("Math.sin(PI/2) = %v, want ~1.0", sine)
+	sineRaw := resultMap["sine"]
+	if sine, ok := sineRaw.(float64); ok {
+		if sine < 0.99 || sine > 1.01 {
+			t.Errorf("Math.sin(PI/2) = %v, want ~1.0", sine)
+		}
+	} else if sineInt, ok := sineRaw.(int64); ok {
+		if sineInt != 1 {
+			t.Errorf("Math.sin(PI/2) = %v, want ~1", sineInt)
+		}
+	} else {
+		t.Errorf("Math.sin() returned unexpected type %T: %v", sineRaw, sineRaw)
 	}
 
 	// Check Math.cos(PI/2) ≈ 0.0
-	if cosine, ok := resultMap["cosine"].(float64); !ok {
-		t.Error("Math.cos() did not return float64")
-	} else if cosine < -0.01 || cosine > 0.01 {
-		t.Errorf("Math.cos(PI/2) = %v, want ~0.0", cosine)
+	cosineRaw := resultMap["cosine"]
+	if cosine, ok := cosineRaw.(float64); ok {
+		if cosine < -0.01 || cosine > 0.01 {
+			t.Errorf("Math.cos(PI/2) = %v, want ~0.0", cosine)
+		}
+	} else if cosineInt, ok := cosineRaw.(int64); ok {
+		if cosineInt != 0 {
+			t.Errorf("Math.cos(PI/2) = %v, want ~0", cosineInt)
+		}
+	} else {
+		t.Errorf("Math.cos() returned unexpected type %T: %v", cosineRaw, cosineRaw)
 	}
 
 	// Check Math.tan(PI/4) ≈ 1.0
-	if tangent, ok := resultMap["tangent"].(float64); !ok {
-		t.Error("Math.tan() did not return float64")
-	} else if tangent < 0.99 || tangent > 1.01 {
-		t.Errorf("Math.tan(PI/4) = %v, want ~1.0", tangent)
+	tangentRaw := resultMap["tangent"]
+	if tangent, ok := tangentRaw.(float64); ok {
+		if tangent < 0.99 || tangent > 1.01 {
+			t.Errorf("Math.tan(PI/4) = %v, want ~1.0", tangent)
+		}
+	} else if tangentInt, ok := tangentRaw.(int64); ok {
+		if tangentInt != 1 {
+			t.Errorf("Math.tan(PI/4) = %v, want ~1", tangentInt)
+		}
+	} else {
+		t.Errorf("Math.tan() returned unexpected type %T: %v", tangentRaw, tangentRaw)
 	}
 
 	// Check Math.PI ≈ 3.14159...
-	if pi, ok := resultMap["pi"].(float64); !ok {
-		t.Error("Math.PI did not return float64")
-	} else if pi < 3.14 || pi > 3.15 {
-		t.Errorf("Math.PI = %v, want ~3.14159", pi)
+	piRaw := resultMap["pi"]
+	if pi, ok := piRaw.(float64); ok {
+		if pi < 3.14 || pi > 3.15 {
+			t.Errorf("Math.PI = %v, want ~3.14159", pi)
+		}
+	} else {
+		t.Errorf("Math.PI returned unexpected type %T: %v", piRaw, piRaw)
 	}
 
 	// Check Math.sqrt(16) = 4.0
-	if sqrt, ok := resultMap["sqrt"].(float64); !ok {
-		t.Error("Math.sqrt() did not return float64")
-	} else if sqrt != 4.0 {
-		t.Errorf("Math.sqrt(16) = %v, want 4.0", sqrt)
+	sqrtRaw := resultMap["sqrt"]
+	if sqrt, ok := sqrtRaw.(float64); ok {
+		if sqrt != 4.0 {
+			t.Errorf("Math.sqrt(16) = %v, want 4.0", sqrt)
+		}
+	} else if sqrtInt, ok := sqrtRaw.(int64); ok {
+		if sqrtInt != 4 {
+			t.Errorf("Math.sqrt(16) = %v, want 4", sqrtInt)
+		}
+	} else {
+		t.Errorf("Math.sqrt() returned unexpected type %T: %v", sqrtRaw, sqrtRaw)
 	}
 
 	// Check Math.pow(2, 3) = 8.0
-	if pow, ok := resultMap["pow"].(float64); !ok {
-		t.Error("Math.pow() did not return float64")
-	} else if pow != 8.0 {
-		t.Errorf("Math.pow(2, 3) = %v, want 8.0", pow)
+	powRaw := resultMap["pow"]
+	if pow, ok := powRaw.(float64); ok {
+		if pow != 8.0 {
+			t.Errorf("Math.pow(2, 3) = %v, want 8.0", pow)
+		}
+	} else if powInt, ok := powRaw.(int64); ok {
+		if powInt != 8 {
+			t.Errorf("Math.pow(2, 3) = %v, want 8", powInt)
+		}
+	} else {
+		t.Errorf("Math.pow() returned unexpected type %T: %v", powRaw, powRaw)
 	}
 
 	// Check Math.exp(0) = 1.0
-	if exp, ok := resultMap["exp"].(float64); !ok {
-		t.Error("Math.exp() did not return float64")
-	} else if exp < 0.99 || exp > 1.01 {
-		t.Errorf("Math.exp(0) = %v, want ~1.0", exp)
+	expRaw := resultMap["exp"]
+	if exp, ok := expRaw.(float64); ok {
+		if exp < 0.99 || exp > 1.01 {
+			t.Errorf("Math.exp(0) = %v, want ~1.0", exp)
+		}
+	} else if expInt, ok := expRaw.(int64); ok {
+		if expInt != 1 {
+			t.Errorf("Math.exp(0) = %v, want ~1", expInt)
+		}
+	} else {
+		t.Errorf("Math.exp() returned unexpected type %T: %v", expRaw, expRaw)
 	}
 
 	// Check Math.log(e) = 1.0
-	if log, ok := resultMap["log"].(float64); !ok {
-		t.Error("Math.log() did not return float64")
-	} else if log < 0.99 || log > 1.01 {
-		t.Errorf("Math.log(e) = %v, want ~1.0", log)
+	logRaw := resultMap["log"]
+	if log, ok := logRaw.(float64); ok {
+		if log < 0.99 || log > 1.01 {
+			t.Errorf("Math.log(e) = %v, want ~1.0", log)
+		}
+	} else if logInt, ok := logRaw.(int64); ok {
+		if logInt != 1 {
+			t.Errorf("Math.log(e) = %v, want ~1", logInt)
+		}
+	} else {
+		t.Errorf("Math.log() returned unexpected type %T: %v", logRaw, logRaw)
 	}
 }
 
