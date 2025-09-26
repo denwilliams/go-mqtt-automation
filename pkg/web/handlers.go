@@ -319,14 +319,13 @@ func (s *Server) handleTopicUpdate(w http.ResponseWriter, r *http.Request, topic
 		return
 	}
 
-	// Update topic configuration
-	config := topics.InternalTopicConfig{
-		Inputs:        cleanInputs,
-		InputNames:    inputNames,
-		StrategyID:    strategyID,
-		EmitToMQTT:    emitToMQTT,
-		NoOpUnchanged: noOpUnchanged,
-	}
+	// Get existing config and update only the changed fields
+	config := topic.GetConfig()
+	config.Inputs = cleanInputs
+	config.InputNames = inputNames
+	config.StrategyID = strategyID
+	config.EmitToMQTT = emitToMQTT
+	config.NoOpUnchanged = noOpUnchanged
 
 	topic.UpdateConfig(config)
 
