@@ -3,8 +3,6 @@ package strategy
 import (
 	"encoding/json"
 	"fmt"
-	"math"
-	"math/rand"
 	"strings"
 	"time"
 
