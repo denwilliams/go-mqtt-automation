@@ -658,6 +658,70 @@ func TestJavaScriptExecutor_Execute_ComplexStrategy(t *testing.T) {
 	}
 }
 
+func TestJavaScriptExecutor_Execute_WithBooleanValues(t *testing.T) {
+	executor := NewJavaScriptExecutor()
+
+	strategy := &Strategy{
+		Code: `function process(context) {
+			// Test various boolean and falsy values
+			context.emit('/true-value', true);
+			context.emit('/false-value', false);
+			context.emit('/null-value', null);
+			context.emit('/undefined-value', undefined);
+			context.emit('/zero-value', 0);
+			context.emit('/empty-string', '');
+
+			// Return false from main process
+			return false;
+		}`,
+	}
+
+	context := ExecutionContext{
+		InputValues: map[string]interface{}{},
+	}
+
+	result := executor.Execute(strategy, context)
+
+	if result.Error != nil {
+		t.Fatalf("Execute() failed: %v", result.Error)
+	}
+
+	// Check main result is false (not null)
+	if result.Result != false {
+		t.Errorf("Main result = %v (type %T), want false", result.Result, result.Result)
+	}
+
+	// Check emitted events
+	if len(result.EmittedEvents) != 6 {
+		t.Fatalf("Expected 6 emitted events, got %d", len(result.EmittedEvents))
+	}
+
+	expectedEvents := map[string]interface{}{
+		"/true-value":      true,
+		"/false-value":     false,  // This should NOT be null
+		"/null-value":      nil,
+		"/undefined-value": nil,
+		"/zero-value":      int64(0),
+		"/empty-string":    "",
+	}
+
+	for _, event := range result.EmittedEvents {
+		expectedValue, exists := expectedEvents[event.Topic]
+		if !exists {
+			t.Errorf("Unexpected event topic: %s", event.Topic)
+			continue
+		}
+
+		if event.Topic == "/false-value" && event.Value != false {
+			t.Errorf("Event %s = %v (type %T), want false (boolean)", event.Topic, event.Value, event.Value)
+		} else if event.Topic == "/true-value" && event.Value != true {
+			t.Errorf("Event %s = %v (type %T), want true (boolean)", event.Topic, event.Value, event.Value)
+		} else if event.Value != expectedValue {
+			t.Errorf("Event %s = %v (type %T), want %v (type %T)", event.Topic, event.Value, event.Value, expectedValue, expectedValue)
+		}
+	}
+}
+
 func TestJavaScriptExecutor_Execute_WithLastOutputs(t *testing.T) {
 	executor := NewJavaScriptExecutor()
 

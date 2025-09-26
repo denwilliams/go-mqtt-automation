@@ -154,7 +154,21 @@ func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{
 		return nil, result.Error
 	}
 
-	return result.EmittedEvents, nil
+	// Prepare events to return - start with explicitly emitted events
+	events := make([]EmitEvent, len(result.EmittedEvents))
+	copy(events, result.EmittedEvents)
+
+	// Add the main result as an event with empty topic (main topic)
+	// Only include non-nil main results to avoid overriding with meaningless values
+	if result.Result != nil {
+		mainEvent := EmitEvent{
+			Topic: "", // Empty topic means main topic
+			Value: result.Result,
+		}
+		events = append(events, mainEvent)
+	}
+
+	return events, nil
 }
 
 func (e *Engine) ValidateStrategy(strategy *Strategy) error {

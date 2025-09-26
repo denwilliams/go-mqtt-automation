@@ -613,6 +613,100 @@ func TestValidateStrategy(t *testing.T) {
 	}
 }
 
+func TestExecuteStrategy_WithMainReturnValues(t *testing.T) {
+	engine := NewEngine(log.New(os.Stdout, "TEST: ", log.LstdFlags))
+
+	tests := []struct {
+		name           string
+		code           string
+		expectedResult interface{}
+		expectMainEvent bool
+	}{
+		{
+			name: "return false",
+			code: `function process(context) { return false; }`,
+			expectedResult: false,
+			expectMainEvent: true,
+		},
+		{
+			name: "return true",
+			code: `function process(context) { return true; }`,
+			expectedResult: true,
+			expectMainEvent: true,
+		},
+		{
+			name: "return 0",
+			code: `function process(context) { return 0; }`,
+			expectedResult: int64(0),
+			expectMainEvent: true,
+		},
+		{
+			name: "return empty string",
+			code: `function process(context) { return ''; }`,
+			expectedResult: "",
+			expectMainEvent: true,
+		},
+		{
+			name: "return null",
+			code: `function process(context) { return null; }`,
+			expectedResult: nil,
+			expectMainEvent: false, // nil values should not create main events
+		},
+		{
+			name: "no return statement",
+			code: `function process(context) { var x = 1; }`,
+			expectedResult: nil,
+			expectMainEvent: false, // undefined/no return should not create main events
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			strategy := &Strategy{
+				ID:       "test-main-return",
+				Name:     "Test Main Return",
+				Code:     tt.code,
+				Language: "javascript",
+			}
+
+			err := engine.AddStrategy(strategy)
+			if err != nil {
+				t.Fatalf("AddStrategy() failed: %v", err)
+			}
+
+			events, err := engine.ExecuteStrategy("test-main-return", map[string]interface{}{}, "test", nil)
+			if err != nil {
+				t.Fatalf("ExecuteStrategy() failed: %v", err)
+			}
+
+			// Find main event (empty topic)
+			var mainEvent *EmitEvent
+			for _, event := range events {
+				if event.Topic == "" {
+					mainEvent = &event
+					break
+				}
+			}
+
+			if tt.expectMainEvent {
+				if mainEvent == nil {
+					t.Errorf("Expected main event (empty topic) but none found")
+				} else if mainEvent.Value != tt.expectedResult {
+					t.Errorf("Main event value = %v (type %T), want %v (type %T)",
+						mainEvent.Value, mainEvent.Value, tt.expectedResult, tt.expectedResult)
+				}
+			} else {
+				if mainEvent != nil {
+					t.Errorf("Expected no main event but found one with value: %v", mainEvent.Value)
+				}
+			}
+
+			// Clean up for next test
+			engine.RemoveStrategy("test-main-return")
+		})
+	}
+}
+
 // Test concurrent access to ensure thread safety
 func TestConcurrentAccess(t *testing.T) {
 	engine := NewEngine(nil)
