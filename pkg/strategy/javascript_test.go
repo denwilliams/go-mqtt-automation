@@ -317,6 +317,97 @@ func TestJavaScriptExecutor_Execute_WithMath(t *testing.T) {
 	}
 }
 
+func TestJavaScriptExecutor_Execute_WithTrigonometry(t *testing.T) {
+	executor := NewJavaScriptExecutor()
+
+	strategy := &Strategy{
+		Code: `function process(context) {
+			var angle = Math.PI / 2; // 90 degrees in radians
+			return {
+				sine: Math.sin(angle),
+				cosine: Math.cos(angle),
+				tangent: Math.tan(Math.PI / 4), // 45 degrees = 1
+				pi: Math.PI,
+				sqrt: Math.sqrt(16),
+				pow: Math.pow(2, 3),
+				exp: Math.exp(0), // e^0 = 1
+				log: Math.log(Math.E) // natural log of e = 1
+			};
+		}`,
+	}
+
+	context := ExecutionContext{
+		InputValues: map[string]interface{}{},
+	}
+
+	result := executor.Execute(strategy, context)
+
+	if result.Error != nil {
+		t.Fatalf("Execute() failed: %v", result.Error)
+	}
+
+	resultMap, ok := result.Result.(map[string]interface{})
+	if !ok {
+		t.Fatal("result is not a map")
+	}
+
+	// Check Math.sin(PI/2) ≈ 1.0
+	if sine, ok := resultMap["sine"].(float64); !ok {
+		t.Error("Math.sin() did not return float64")
+	} else if sine < 0.99 || sine > 1.01 {
+		t.Errorf("Math.sin(PI/2) = %v, want ~1.0", sine)
+	}
+
+	// Check Math.cos(PI/2) ≈ 0.0
+	if cosine, ok := resultMap["cosine"].(float64); !ok {
+		t.Error("Math.cos() did not return float64")
+	} else if cosine < -0.01 || cosine > 0.01 {
+		t.Errorf("Math.cos(PI/2) = %v, want ~0.0", cosine)
+	}
+
+	// Check Math.tan(PI/4) ≈ 1.0
+	if tangent, ok := resultMap["tangent"].(float64); !ok {
+		t.Error("Math.tan() did not return float64")
+	} else if tangent < 0.99 || tangent > 1.01 {
+		t.Errorf("Math.tan(PI/4) = %v, want ~1.0", tangent)
+	}
+
+	// Check Math.PI ≈ 3.14159...
+	if pi, ok := resultMap["pi"].(float64); !ok {
+		t.Error("Math.PI did not return float64")
+	} else if pi < 3.14 || pi > 3.15 {
+		t.Errorf("Math.PI = %v, want ~3.14159", pi)
+	}
+
+	// Check Math.sqrt(16) = 4.0
+	if sqrt, ok := resultMap["sqrt"].(float64); !ok {
+		t.Error("Math.sqrt() did not return float64")
+	} else if sqrt != 4.0 {
+		t.Errorf("Math.sqrt(16) = %v, want 4.0", sqrt)
+	}
+
+	// Check Math.pow(2, 3) = 8.0
+	if pow, ok := resultMap["pow"].(float64); !ok {
+		t.Error("Math.pow() did not return float64")
+	} else if pow != 8.0 {
+		t.Errorf("Math.pow(2, 3) = %v, want 8.0", pow)
+	}
+
+	// Check Math.exp(0) = 1.0
+	if exp, ok := resultMap["exp"].(float64); !ok {
+		t.Error("Math.exp() did not return float64")
+	} else if exp < 0.99 || exp > 1.01 {
+		t.Errorf("Math.exp(0) = %v, want ~1.0", exp)
+	}
+
+	// Check Math.log(e) = 1.0
+	if log, ok := resultMap["log"].(float64); !ok {
+		t.Error("Math.log() did not return float64")
+	} else if log < 0.99 || log > 1.01 {
+		t.Errorf("Math.log(e) = %v, want ~1.0", log)
+	}
+}
+
 func TestJavaScriptExecutor_Execute_WithError(t *testing.T) {
 	executor := NewJavaScriptExecutor()
 

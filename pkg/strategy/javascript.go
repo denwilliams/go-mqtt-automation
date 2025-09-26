@@ -163,51 +163,8 @@ func (jse *JavaScriptExecutor) setupEnvironment(vm *goja.Runtime, context *Execu
 		return string(data)
 	})
 
-	// Set up Math object with native Go implementations to avoid circular references
-	mathObj := vm.NewObject()
-	mathObj.Set("abs", func(x float64) float64 {
-		if x < 0 {
-			return -x
-		}
-		return x
-	})
-	mathObj.Set("max", func(values ...float64) float64 {
-		if len(values) == 0 {
-			return 0
-		}
-		max := values[0]
-		for _, v := range values[1:] {
-			if v > max {
-				max = v
-			}
-		}
-		return max
-	})
-	mathObj.Set("min", func(values ...float64) float64 {
-		if len(values) == 0 {
-			return 0
-		}
-		min := values[0]
-		for _, v := range values[1:] {
-			if v < min {
-				min = v
-			}
-		}
-		return min
-	})
-	mathObj.Set("round", func(x float64) float64 {
-		return math.Round(x)
-	})
-	mathObj.Set("floor", func(x float64) float64 {
-		return math.Floor(x)
-	})
-	mathObj.Set("ceil", func(x float64) float64 {
-		return math.Ceil(x)
-	})
-	mathObj.Set("random", func() float64 {
-		return rand.Float64()
-	})
-	vm.Set("Math", mathObj)
+	// Note: Modern goja versions include a built-in Math object with all standard functions
+	// including sin, cos, tan, sqrt, pow, PI, E, etc. We don't need to override it.
 
 	// Set up context object that will be available to the script
 	vm.Set("context", jse.createContextObject(vm, *context))
