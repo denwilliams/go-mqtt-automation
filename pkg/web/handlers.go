@@ -274,28 +274,38 @@ func (s *Server) handleTopicCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, err := s.topicManager.AddInternalTopic(name, cleanInputs, strategyID)
-	if err != nil {
-		s.logger.Printf("Failed to create topic: %v", err)
-		http.Error(w, fmt.Sprintf("Failed to create topic: %v", err), http.StatusBadRequest)
+	// Create topic config first
+	config := topics.InternalTopicConfig{
+		BaseTopicConfig: topics.BaseTopicConfig{
+			Name:        name,
+			Type:        topics.TopicTypeInternal,
+			CreatedAt:   time.Now(),
+			LastUpdated: time.Now(),
+			Config:      make(map[string]interface{}),
+		},
+		Inputs:        cleanInputs,
+		InputNames:    inputNames,
+		StrategyID:    strategyID,
+		EmitToMQTT:    emitToMQTT,
+		NoOpUnchanged: noOpUnchanged,
+	}
+
+	// Save to database FIRST (source of truth)
+	if err := s.stateManager.SaveTopicConfig(config); err != nil {
+		s.logger.Printf("Failed to save topic to database: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to save topic to database: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Update topic settings
-	topic := s.topicManager.GetInternalTopic(name)
-	if topic != nil {
-		topic.SetEmitToMQTT(emitToMQTT)
-		topic.SetNoOpUnchanged(noOpUnchanged)
-
-		// Set input names if provided
-		for topicPath, inputName := range inputNames {
-			topic.SetInputName(topicPath, inputName)
-		}
-
-		// Save to database
-		config := topic.GetConfig()
-		if err := s.stateManager.SaveTopicConfig(config); err != nil {
-			s.logger.Printf("Failed to save topic config: %v", err)
+	// THEN create in-memory version by loading from database
+	_, err := s.topicManager.AddInternalTopic(name, cleanInputs, strategyID)
+	if err != nil {
+		s.logger.Printf("Failed to create topic in memory: %v", err)
+		// Try to reload from database instead
+		if reloadErr := s.topicManager.ReloadTopicFromDatabase(name); reloadErr != nil {
+			s.logger.Printf("Failed to reload topic from database: %v", reloadErr)
+			http.Error(w, fmt.Sprintf("Topic saved to database but failed to load in memory: %v", reloadErr), http.StatusInternalServerError)
+			return
 		}
 	}
 
@@ -350,13 +360,17 @@ func (s *Server) handleTopicUpdate(w http.ResponseWriter, r *http.Request, topic
 	// Ensure the Type field is properly set
 	config.Type = topics.TopicTypeInternal
 
-	topic.UpdateConfig(config)
-
-	// Save to database using the topic's config
-	if err := s.stateManager.SaveTopicConfig(topic.GetConfig()); err != nil {
+	// Save to database FIRST (source of truth)
+	if err := s.stateManager.SaveTopicConfig(config); err != nil {
 		s.logger.Printf("Failed to save topic to database: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to save topic to database: %v", err), http.StatusInternalServerError)
 		return
+	}
+
+	// THEN reload in-memory version from database to sync
+	if err := s.topicManager.ReloadTopicFromDatabase(topicName); err != nil {
+		s.logger.Printf("Failed to reload topic from database: %v", err)
+		// Continue anyway - database save succeeded, so this is just a warning
 	}
 
 	http.Redirect(w, r, "/topics", http.StatusSeeOther)
@@ -439,8 +453,10 @@ func (s *Server) handleStrategyEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "GET" {
-		strategy, err := s.strategyEngine.GetStrategy(strategyID)
+		// Load strategy from database to ensure we have the latest data
+		strategy, err := s.stateManager.LoadStrategy(strategyID)
 		if err != nil {
+			s.logger.Printf("Failed to load strategy from database: %v", err)
 			http.Error(w, "Strategy not found", http.StatusNotFound)
 			return
 		}
@@ -530,15 +546,22 @@ func (s *Server) handleStrategyCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := s.strategyEngine.AddStrategy(strat); err != nil {
-		s.logger.Printf("Failed to create strategy: %v", err)
-		http.Error(w, fmt.Sprintf("Failed to create strategy: %v", err), http.StatusBadRequest)
+	// Save to database FIRST (source of truth)
+	if err := s.stateManager.SaveStrategy(strat); err != nil {
+		s.logger.Printf("Failed to save strategy to database: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to save strategy to database: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Save to database
-	if err := s.stateManager.SaveStrategy(strat); err != nil {
-		s.logger.Printf("Failed to save strategy to database: %v", err)
+	// THEN add to in-memory engine
+	if err := s.strategyEngine.AddStrategy(strat); err != nil {
+		s.logger.Printf("Failed to create strategy in memory: %v", err)
+		// Try to reload from database instead
+		if reloadErr := s.strategyEngine.ReloadStrategyFromDatabase(strat.ID, strat); reloadErr != nil {
+			s.logger.Printf("Failed to reload strategy from database: %v", reloadErr)
+			http.Error(w, fmt.Sprintf("Strategy saved to database but failed to load in memory: %v", reloadErr), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	http.Redirect(w, r, "/strategies", http.StatusSeeOther)
@@ -550,9 +573,10 @@ func (s *Server) handleStrategyUpdate(w http.ResponseWriter, r *http.Request, st
 		return
 	}
 
-	// Get existing strategy
-	existingStrategy, err := s.strategyEngine.GetStrategy(strategyID)
+	// Get existing strategy from database (source of truth)
+	existingStrategy, err := s.stateManager.LoadStrategy(strategyID)
 	if err != nil {
+		s.logger.Printf("Failed to load strategy from database: %v", err)
 		http.Error(w, "Strategy not found", http.StatusNotFound)
 		return
 	}
@@ -595,15 +619,17 @@ func (s *Server) handleStrategyUpdate(w http.ResponseWriter, r *http.Request, st
 		strat.Parameters = make(map[string]interface{})
 	}
 
-	if err := s.strategyEngine.UpdateStrategy(strat); err != nil {
-		s.logger.Printf("Failed to update strategy: %v", err)
-		http.Error(w, fmt.Sprintf("Failed to update strategy: %v", err), http.StatusBadRequest)
+	// Save to database FIRST (source of truth)
+	if err := s.stateManager.SaveStrategy(strat); err != nil {
+		s.logger.Printf("Failed to save strategy to database: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to save strategy to database: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Save to database
-	if err := s.stateManager.SaveStrategy(strat); err != nil {
-		s.logger.Printf("Failed to save strategy to database: %v", err)
+	// THEN reload in-memory version from database to sync
+	if err := s.strategyEngine.ReloadStrategyFromDatabase(strategyID, strat); err != nil {
+		s.logger.Printf("Failed to reload strategy from database: %v", err)
+		// Continue anyway - database save succeeded, so this is just a warning
 	}
 
 	http.Redirect(w, r, "/strategies", http.StatusSeeOther)

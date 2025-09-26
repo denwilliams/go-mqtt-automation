@@ -20,6 +20,7 @@ type StrategyExecutor interface {
 type StateManager interface {
 	SaveTopicState(topicName string, value interface{}) error
 	LoadTopicState(topicName string) (interface{}, error)
+	LoadTopicConfig(topicName string) (interface{}, error)
 }
 
 type Manager struct {
@@ -519,5 +520,95 @@ func (m *Manager) createOrUpdateExternalTopic(topicName string, value interface{
 	}
 
 	m.logger.Printf("Created new external topic: %s", topicName)
+	return nil
+}
+
+// ReloadTopicFromDatabase loads a topic configuration from the database and updates the in-memory version
+func (m *Manager) ReloadTopicFromDatabase(topicName string) error {
+	if m.stateManager == nil {
+		return fmt.Errorf("state manager not configured")
+	}
+
+	// Load topic config from database
+	configInterface, err := m.stateManager.LoadTopicConfig(topicName)
+	if err != nil {
+		return fmt.Errorf("failed to load topic config from database: %w", err)
+	}
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	// Handle different topic types
+	switch cfg := configInterface.(type) {
+	case InternalTopicConfig:
+		// Update existing internal topic or create new one
+		if existingTopic, exists := m.internalTopics[topicName]; exists {
+			// Update existing topic
+			existingTopic.UpdateConfig(cfg)
+			m.logger.Printf("Reloaded internal topic from database: %s", topicName)
+		} else {
+			// Create new internal topic
+			newTopic := &InternalTopic{
+				config:  cfg,
+				manager: m,
+			}
+			m.internalTopics[topicName] = newTopic
+			m.topics[topicName] = newTopic
+			m.logger.Printf("Created new internal topic from database: %s", topicName)
+		}
+
+	case BaseTopicConfig:
+		// Handle external topics (they use BaseTopicConfig)
+		if cfg.Type == TopicTypeExternal {
+			if existingTopic, exists := m.externalTopics[topicName]; exists {
+				// Update existing topic
+				existingTopic.UpdateConfig(cfg)
+				m.logger.Printf("Reloaded external topic from database: %s", topicName)
+			} else {
+				// Create new external topic
+				newTopic := NewExternalTopic(topicName)
+				newTopic.SetManager(m)
+				newTopic.UpdateConfig(cfg)
+				m.externalTopics[topicName] = newTopic
+				m.topics[topicName] = newTopic
+				m.logger.Printf("Created new external topic from database: %s", topicName)
+			}
+		}
+
+	case SystemTopicConfig:
+		// Update existing system topic or create new one
+		if existingTopic, exists := m.systemTopics[topicName]; exists {
+			// Stop existing topic before updating
+			if existingTopic.IsRunning() {
+				existingTopic.Stop()
+			}
+			// Update existing topic
+			existingTopic.UpdateConfig(cfg)
+			// Restart if it has an interval
+			if cfg.Interval != "" {
+				if startErr := existingTopic.Start(); startErr != nil {
+					m.logger.Printf("Failed to restart system topic %s: %v", topicName, startErr)
+				}
+			}
+			m.logger.Printf("Reloaded system topic from database: %s", topicName)
+		} else {
+			// Create new system topic
+			newTopic := NewSystemTopic(topicName, cfg.Config)
+			newTopic.SetManager(m)
+			m.systemTopics[topicName] = newTopic
+			m.topics[topicName] = newTopic
+			// Start if it has an interval
+			if cfg.Interval != "" {
+				if startErr := newTopic.Start(); startErr != nil {
+					m.logger.Printf("Failed to start new system topic %s: %v", topicName, startErr)
+				}
+			}
+			m.logger.Printf("Created new system topic from database: %s", topicName)
+		}
+
+	default:
+		return fmt.Errorf("unknown topic config type: %T", configInterface)
+	}
+
 	return nil
 }

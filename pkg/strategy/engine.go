@@ -252,3 +252,23 @@ func (e *Engine) GetStrategyCount() int {
 
 	return len(e.strategies)
 }
+
+// ReloadStrategyFromDatabase loads a strategy from the database and updates the in-memory version
+func (e *Engine) ReloadStrategyFromDatabase(strategyID string, strategy *Strategy) error {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+
+	// Validate the strategy
+	if err := e.validateStrategy(strategy); err != nil {
+		return fmt.Errorf("strategy validation failed: %w", err)
+	}
+
+	// Update timestamp
+	strategy.UpdatedAt = time.Now()
+
+	// Update the in-memory strategy
+	e.strategies[strategy.ID] = strategy
+	e.logger.Printf("Reloaded strategy from database: %s (%s)", strategy.Name, strategy.ID)
+
+	return nil
+}
