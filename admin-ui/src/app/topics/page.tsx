@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -23,9 +24,16 @@ interface Topic {
   emit_to_mqtt?: boolean
 }
 
+interface Strategy {
+  id: string
+  name: string
+  language: string
+}
+
 
 export default function TopicsPage() {
   const [topics, setTopics] = useState<Topic[]>([])
+  const [strategies, setStrategies] = useState<Strategy[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('all')
@@ -35,7 +43,7 @@ export default function TopicsPage() {
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
   const [formData, setFormData] = useState({
     name: '',
-    type: 'external',
+    type: 'internal',
     emit_to_mqtt: false,
     inputs: [] as string[],
     strategy_id: ''
@@ -66,9 +74,28 @@ export default function TopicsPage() {
     }
   }
 
+  const fetchStrategies = async () => {
+    try {
+      const response = await fetch('/api/v1/strategies?limit=100')
+      if (!response.ok) {
+        throw new Error('Failed to fetch strategies')
+      }
+      const result = await response.json()
+      if (result.success) {
+        setStrategies(result.data.strategies || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch strategies:', err)
+    }
+  }
+
   useEffect(() => {
     fetchTopics(filter === 'all' ? undefined : filter)
   }, [filter])
+
+  useEffect(() => {
+    fetchStrategies()
+  }, [])
 
   // Permission helpers
   const canEdit = (topic: Topic) => {
@@ -87,7 +114,7 @@ export default function TopicsPage() {
     setEditingTopic(null)
     setFormData({
       name: '',
-      type: 'external',
+      type: 'internal',
       emit_to_mqtt: false,
       inputs: [],
       strategy_id: ''
@@ -113,6 +140,19 @@ export default function TopicsPage() {
       return
     }
 
+    // Ensure new topics are always internal type
+    if (!editingTopic && formData.type !== 'internal') {
+      alert('Only internal topics can be created')
+      return
+    }
+
+    // Validate that at least one input topic is specified
+    const inputTopics = formData.inputs.filter(input => input.trim() !== '')
+    if (inputTopics.length === 0) {
+      alert('At least one input topic is required')
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const url = editingTopic
@@ -131,7 +171,7 @@ export default function TopicsPage() {
           type: formData.type,
           emit_to_mqtt: formData.emit_to_mqtt,
           inputs: formData.inputs.filter(input => input.trim() !== ''),
-          strategy_id: formData.strategy_id || undefined
+          strategy_id: formData.strategy_id && formData.strategy_id !== '' ? formData.strategy_id : undefined
         })
       })
 
@@ -469,35 +509,60 @@ export default function TopicsPage() {
 
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Type</label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value) => setFormData({ ...formData, type: value })}
-                  disabled={!!editingTopic}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select topic type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="external">External</SelectItem>
-                    <SelectItem value="internal">Internal</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
-                  </SelectContent>
-                </Select>
+                {editingTopic ? (
+                  <Select
+                    value={formData.type}
+                    onValueChange={(value) => setFormData({ ...formData, type: value })}
+                    disabled={true}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select topic type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="external">External</SelectItem>
+                      <SelectItem value="internal">Internal</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background">
+                    Internal
+                  </div>
+                )}
                 {editingTopic && (
                   <p className="text-xs text-muted-foreground">
                     Topic type cannot be changed after creation
                   </p>
                 )}
+                {!editingTopic && (
+                  <p className="text-xs text-muted-foreground">
+                    Only internal topics can be created through this interface
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Strategy ID (Optional)</label>
-                <Input
+                <label className="text-sm font-medium">Strategy (Optional)</label>
+                <Select
                   value={formData.strategy_id}
-                  onChange={(e) => setFormData({ ...formData, strategy_id: e.target.value })}
-                  placeholder="Enter strategy ID"
+                  onValueChange={(value) => setFormData({ ...formData, strategy_id: value })}
                   disabled={editingTopic?.type === 'system' || editingTopic?.type === 'external'}
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a strategy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Strategy</SelectItem>
+                    {strategies.map((strategy) => (
+                      <SelectItem key={strategy.id} value={strategy.id}>
+                        {strategy.name} ({strategy.id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Choose a strategy to process input topics or leave blank for child topics
+                </p>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -515,18 +580,19 @@ export default function TopicsPage() {
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Input Topics (Optional)</label>
-                <Input
-                  value={formData.inputs.join(', ')}
+                <label className="text-sm font-medium">Input Topics (Required)</label>
+                <Textarea
+                  value={formData.inputs.join('\n')}
                   onChange={(e) => setFormData({
                     ...formData,
-                    inputs: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')
+                    inputs: e.target.value.split('\n').map(s => s.trim()).filter(s => s !== '')
                   })}
-                  placeholder="Comma-separated list of input topics"
+                  placeholder="Enter one topic name per line&#10;example:&#10;sensor/temperature&#10;sensor/humidity"
                   disabled={editingTopic?.type === 'system' || editingTopic?.type === 'external'}
+                  rows={4}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Enter topic names separated by commas
+                  Enter topic names, one per line. At least one input topic is required.
                 </p>
               </div>
             </div>
