@@ -191,48 +191,39 @@ export default function TopicsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-lg">Loading topics...</div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading topics...</div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto">
-          <Card className="w-96 mx-auto mt-32">
-            <CardHeader>
-              <CardTitle className="text-red-600">Error</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">{error}</p>
-              <Button onClick={() => fetchTopics(filter === 'all' ? undefined : filter)} variant="outline">
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card className="w-96 mx-auto mt-32">
+        <CardHeader>
+          <CardTitle className="text-red-600">Error</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => fetchTopics(filter === 'all' ? undefined : filter)} variant="outline">
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Topics Management</h1>
-              <p className="text-muted-foreground">
-                Manage external, internal, and system topics
-              </p>
-            </div>
+    <div className="flex-1">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Topics</h1>
+            <p className="text-muted-foreground">
+              Manage external, internal, and system topics
+            </p>
+          </div>
             <div className="flex gap-2">
               <Button onClick={openCreateDialog}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -532,7 +523,6 @@ export default function TopicsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   )
 }
