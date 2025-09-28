@@ -77,7 +77,7 @@ export default function StrategiesPage() {
     setFormData({
       id: '',
       name: '',
-      code: '// Strategy code here\nfunction execute(context) {\n  // Your automation logic here\n  \n  // Access input values:\n  // const inputValue = context.inputs["input_topic_name"];\n  \n  // Emit to main topic:\n  // context.emit(value);\n  \n  // Emit to subtopic:\n  // context.emit("/subtopic", value);\n  \n  // Log messages:\n  // context.log("Strategy executed");\n}',
+      code: '// Strategy code here\nfunction process(context) {\n  // Your automation logic here\n  \n  // Access input values:\n  // const inputValue = context.inputs["input_topic_name"];\n  \n  // Emit to main topic:\n  // context.emit(value);\n  \n  // Emit to subtopic:\n  // context.emit("/subtopic", value);\n  \n  // Log messages:\n  // context.log("Strategy executed");\n}',
       language: 'javascript',
       parameters: {},
       max_inputs: 0,
