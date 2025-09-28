@@ -482,47 +482,6 @@ func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}
 	return nil
 }
 
-// createOrUpdateExternalTopic creates or updates an external topic with the given value
-func (m *Manager) createOrUpdateExternalTopic(topicName string, value interface{}) error {
-	m.mutex.Lock()
-	defer func() {
-		m.mutex.Unlock()
-	}()
-
-	// Check if topic already exists
-	if existingTopic, exists := m.externalTopics[topicName]; exists {
-		// Update existing external topic directly without triggering notifications
-		// to prevent recursive calls to NotifyTopicUpdate
-		existingTopic.config.LastValue = value
-		existingTopic.config.LastUpdated = time.Now()
-
-		// Save state to database
-		if err := m.SaveTopicState(topicName, value); err != nil {
-			return fmt.Errorf("failed to save topic state: %w", err)
-		}
-
-		return nil
-	}
-
-	// Create new external topic
-	newTopic := NewExternalTopic(topicName)
-	newTopic.SetManager(m)
-	m.externalTopics[topicName] = newTopic
-	m.topics[topicName] = newTopic
-
-	// Set the initial value directly without triggering notifications
-	newTopic.config.LastValue = value
-	newTopic.config.LastUpdated = time.Now()
-
-	// Save state to database
-	if err := m.SaveTopicState(topicName, value); err != nil {
-		return fmt.Errorf("failed to save topic state for %s: %w", topicName, err)
-	}
-
-	m.logger.Printf("Created new external topic: %s", topicName)
-	return nil
-}
-
 // ReloadTopicFromDatabase loads a topic configuration from the database and updates the in-memory version
 func (m *Manager) ReloadTopicFromDatabase(topicName string) error {
 	if m.stateManager == nil {

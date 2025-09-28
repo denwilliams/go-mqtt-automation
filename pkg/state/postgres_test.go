@@ -107,31 +107,6 @@ func TestPostgreSQLDatabase_SaveAndLoadTopic(t *testing.T) {
 	*/
 }
 
-// Helper function for setting up test PostgreSQL database
-// This would typically use a test container or require manual setup
-func setupTestPostgreSQL(t *testing.T) *PostgreSQLDatabase {
-	t.Helper()
-
-	// This is just a placeholder - actual implementation would:
-	// 1. Set up a test database (using testcontainers-go or similar)
-	// 2. Run migrations
-	// 3. Return the database instance
-	// 4. Provide cleanup functionality
-
-	dsn := "postgres://test:test@localhost:5432/test_automation?sslmode=disable"
-	db, err := NewPostgreSQLDatabase(dsn)
-	if err != nil {
-		t.Fatalf("Failed to create test database: %v", err)
-	}
-
-	// Run migrations
-	if err := db.Migrate(); err != nil {
-		t.Fatalf("Failed to run migrations: %v", err)
-	}
-
-	return db
-}
-
 // Unit tests for PostgreSQL-specific functionality (no database required)
 func TestPostgreSQLDatabase_DSNParsing(t *testing.T) {
 	// We can't actually connect without a database, but we can test

@@ -38,10 +38,8 @@ func NewServer(cfg *config.Config, topicManager *topics.Manager, strategyEngine 
 		logger:         logger,
 	}
 
-
 	return server, nil
 }
-
 
 func (s *Server) Start() error {
 	s.setupRoutes()
@@ -88,16 +86,11 @@ func (s *Server) setupRoutes() {
 	http.HandleFunc("/api/strategies", s.handleAPIStrategies)
 	http.HandleFunc("/api/system/status", s.handleAPISystemStatus)
 
+	// Static file serving for admin UI (catch-all handler)
+	http.HandleFunc("/", s.handleStaticFiles)
+
 	s.logger.Println("Web server routes configured")
 }
-
-
-
-
-
-
-
-
 
 func (s *Server) getSystemStatus() string {
 	if s.mqttClient == nil {

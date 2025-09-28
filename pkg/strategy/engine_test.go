@@ -617,45 +617,45 @@ func TestExecuteStrategy_WithMainReturnValues(t *testing.T) {
 	engine := NewEngine(log.New(os.Stdout, "TEST: ", log.LstdFlags))
 
 	tests := []struct {
-		name           string
-		code           string
-		expectedResult interface{}
+		name            string
+		code            string
+		expectedResult  interface{}
 		expectMainEvent bool
 	}{
 		{
-			name: "return false",
-			code: `function process(context) { return false; }`,
-			expectedResult: false,
+			name:            "return false",
+			code:            `function process(context) { return false; }`,
+			expectedResult:  false,
 			expectMainEvent: true,
 		},
 		{
-			name: "return true",
-			code: `function process(context) { return true; }`,
-			expectedResult: true,
+			name:            "return true",
+			code:            `function process(context) { return true; }`,
+			expectedResult:  true,
 			expectMainEvent: true,
 		},
 		{
-			name: "return 0",
-			code: `function process(context) { return 0; }`,
-			expectedResult: int64(0),
+			name:            "return 0",
+			code:            `function process(context) { return 0; }`,
+			expectedResult:  int64(0),
 			expectMainEvent: true,
 		},
 		{
-			name: "return empty string",
-			code: `function process(context) { return ''; }`,
-			expectedResult: "",
+			name:            "return empty string",
+			code:            `function process(context) { return ''; }`,
+			expectedResult:  "",
 			expectMainEvent: true,
 		},
 		{
-			name: "return null",
-			code: `function process(context) { return null; }`,
-			expectedResult: nil,
+			name:            "return null",
+			code:            `function process(context) { return null; }`,
+			expectedResult:  nil,
 			expectMainEvent: false, // nil values should not create main events
 		},
 		{
-			name: "no return statement",
-			code: `function process(context) { var x = 1; }`,
-			expectedResult: nil,
+			name:            "no return statement",
+			code:            `function process(context) { var x = 1; }`,
+			expectedResult:  nil,
 			expectMainEvent: false, // undefined/no return should not create main events
 		},
 	}

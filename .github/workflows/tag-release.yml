@@ -85,7 +85,7 @@ jobs:
         for platform in linux-amd64 linux-arm64 linux-arm darwin-amd64 darwin-arm64; do
           mkdir -p "packages/automation-server-${platform}-${VERSION}"
           cp "dist/automation-server-${platform}" "packages/automation-server-${platform}-${VERSION}/"
-          cp -r out/ "packages/automation-server-${platform}-${VERSION}/admin-ui/"
+          cp -r static/ "packages/automation-server-${platform}-${VERSION}/"
           cp -r db/ "packages/automation-server-${platform}-${VERSION}/"
           cp config/config.example.yaml "packages/automation-server-${platform}-${VERSION}/config.yaml"
           cp README.md "packages/automation-server-${platform}-${VERSION}/"
@@ -97,7 +97,7 @@ jobs:
         # Windows package
         mkdir -p "packages/automation-server-windows-amd64-${VERSION}"
         cp "dist/automation-server-windows-amd64.exe" "packages/automation-server-windows-amd64-${VERSION}/"
-        cp -r out/ "packages/automation-server-windows-amd64-${VERSION}/admin-ui/"
+        cp -r static/ "packages/automation-server-windows-amd64-${VERSION}/"
         cp -r db/ "packages/automation-server-windows-amd64-${VERSION}/"
         cp config/config.example.yaml "packages/automation-server-windows-amd64-${VERSION}/config.yaml"
         cp README.md "packages/automation-server-windows-amd64-${VERSION}/"

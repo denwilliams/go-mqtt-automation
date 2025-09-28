@@ -84,3 +84,8 @@ volumes/
 .env
 .env.local
 .env.*.local
+
+
+admin-ui-deployed/
+test-admin-ui/
+static/

@@ -24,11 +24,11 @@ func (s *Server) handleAPISystemInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := SystemInfoResponse{
-		Version:       "1.0.0",             // TODO: Get from build info
-		Uptime:        "0m",                // TODO: Calculate actual uptime
-		BuildDate:     "unknown",           // TODO: Get from build info
+		Version:       "1.0.0",   // TODO: Get from build info
+		Uptime:        "0m",      // TODO: Calculate actual uptime
+		BuildDate:     "unknown", // TODO: Get from build info
 		GoVersion:     runtime.Version(),
-		DatabaseType:  "sqlite",            // TODO: Get from config
+		DatabaseType:  "sqlite", // TODO: Get from config
 		MQTTConnected: mqttConnected,
 	}
 
@@ -37,10 +37,10 @@ func (s *Server) handleAPISystemInfo(w http.ResponseWriter, r *http.Request) {
 
 // System stats structures
 type SystemStatsResponse struct {
-	Topics     TopicStatsDetail     `json:"topics"`
-	Strategies StrategyStatsDetail  `json:"strategies"`
-	MQTT       MQTTStatsDetail      `json:"mqtt"`
-	Database   DatabaseStatsDetail  `json:"database"`
+	Topics     TopicStatsDetail    `json:"topics"`
+	Strategies StrategyStatsDetail `json:"strategies"`
+	MQTT       MQTTStatsDetail     `json:"mqtt"`
+	Database   DatabaseStatsDetail `json:"database"`
 }
 
 type TopicStatsDetail struct {
@@ -50,14 +50,14 @@ type TopicStatsDetail struct {
 }
 
 type StrategyStatsDetail struct {
-	Total     int                    `json:"total"`
-	Languages map[string]int         `json:"languages"`
+	Total     int            `json:"total"`
+	Languages map[string]int `json:"languages"`
 }
 
 type MQTTStatsDetail struct {
-	MessagesProcessed   int64     `json:"messages_processed"`
-	LastMessageTime     time.Time `json:"last_message_time"`
-	ConnectionUptime    string    `json:"connection_uptime"`
+	MessagesProcessed int64     `json:"messages_processed"`
+	LastMessageTime   time.Time `json:"last_message_time"`
+	ConnectionUptime  string    `json:"connection_uptime"`
 }
 
 type DatabaseStatsDetail struct {
@@ -92,9 +92,9 @@ func (s *Server) handleAPISystemStats(w http.ResponseWriter, r *http.Request) {
 			Languages: languages,
 		},
 		MQTT: MQTTStatsDetail{
-			MessagesProcessed: 0,           // TODO: Track messages
-			LastMessageTime:   time.Now(),  // TODO: Track last message
-			ConnectionUptime:  "0m",        // TODO: Track connection uptime
+			MessagesProcessed: 0,          // TODO: Track messages
+			LastMessageTime:   time.Now(), // TODO: Track last message
+			ConnectionUptime:  "0m",       // TODO: Track connection uptime
 		},
 		Database: DatabaseStatsDetail{
 			SizeMB:      0.0, // TODO: Calculate database size
@@ -185,8 +185,8 @@ func (s *Server) handleAPISystem(w http.ResponseWriter, r *http.Request) {
 	// Create extended system info that matches React component interface
 	extendedInfo := map[string]interface{}{
 		"system": map[string]interface{}{
-			"version":      "1.0.0",             // TODO: Get from build info
-			"uptime":       "0m",                // TODO: Calculate actual uptime
+			"version":      "1.0.0", // TODO: Get from build info
+			"uptime":       "0m",    // TODO: Calculate actual uptime
 			"status":       "healthy",
 			"pid":          pid,
 			"memory_usage": "0 MB", // TODO: Calculate actual memory usage
@@ -201,13 +201,13 @@ func (s *Server) handleAPISystem(w http.ResponseWriter, r *http.Request) {
 		"mqtt": map[string]interface{}{
 			"broker_url":         "localhost:1883", // TODO: Get from config
 			"connected":          mqttConnected,
-			"messages_processed": 0,                // TODO: Track actual messages
-			"subscriptions":      0,                // TODO: Track actual subscriptions
+			"messages_processed": 0, // TODO: Track actual messages
+			"subscriptions":      0, // TODO: Track actual subscriptions
 		},
 		"performance": map[string]interface{}{
-			"cpu_usage":    "0%",    // TODO: Calculate actual CPU usage
-			"memory_usage": "0 MB",  // TODO: Calculate actual memory usage
-			"disk_usage":   "0 GB",  // TODO: Calculate actual disk usage
+			"cpu_usage":    "0%",   // TODO: Calculate actual CPU usage
+			"memory_usage": "0 MB", // TODO: Calculate actual memory usage
+			"disk_usage":   "0 GB", // TODO: Calculate actual disk usage
 			"network_io": map[string]interface{}{
 				"bytes_sent":     0, // TODO: Track actual network I/O
 				"bytes_received": 0,

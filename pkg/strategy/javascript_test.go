@@ -698,7 +698,7 @@ func TestJavaScriptExecutor_Execute_WithBooleanValues(t *testing.T) {
 
 	expectedEvents := map[string]interface{}{
 		"/true-value":      true,
-		"/false-value":     false,  // This should NOT be null
+		"/false-value":     false, // This should NOT be null
 		"/null-value":      nil,
 		"/undefined-value": nil,
 		"/zero-value":      int64(0),

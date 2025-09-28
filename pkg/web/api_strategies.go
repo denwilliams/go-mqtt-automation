@@ -274,11 +274,11 @@ type StrategyTestRequest struct {
 }
 
 type StrategyTestResponse struct {
-	Result          interface{}           `json:"result"`
-	LogMessages     []string              `json:"log_messages"`
-	EmittedEvents   []strategy.EmitEvent  `json:"emitted_events"`
-	ExecutionTimeMS int64                 `json:"execution_time_ms"`
-	Error           string                `json:"error,omitempty"`
+	Result          interface{}          `json:"result"`
+	LogMessages     []string             `json:"log_messages"`
+	EmittedEvents   []strategy.EmitEvent `json:"emitted_events"`
+	ExecutionTimeMS int64                `json:"execution_time_ms"`
+	Error           string               `json:"error,omitempty"`
 }
 
 func (s *Server) handleAPIStrategyTest(w http.ResponseWriter, r *http.Request, strategyID string) {

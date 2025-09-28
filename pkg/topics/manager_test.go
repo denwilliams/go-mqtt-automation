@@ -21,13 +21,14 @@ func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[str
 			return nil, err
 		} else {
 			// Handle special test cases that emit derived topics
-			if strategyID == "parent-strategy" {
+			switch strategyID {
+			case "parent-strategy":
 				// Emit derived topic
 				return []strategy.EmitEvent{
 					{Topic: "", Value: result},        // Main topic output
 					{Topic: "/battery", Value: "75%"}, // Derived topic (relative path)
 				}, nil
-			} else if strategyID == "emitter-strategy" {
+			case "emitter-strategy":
 				// Emit multiple derived topics
 				if resultMap, ok := result.(map[string]interface{}); ok {
 					events := []strategy.EmitEvent{{Topic: "", Value: result}} // Main topic
@@ -36,7 +37,7 @@ func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[str
 					}
 					return events, nil
 				}
-			} else if strategyID == "source-strategy" {
+			case "source-strategy":
 				// Emit to a specific derived topic
 				return []strategy.EmitEvent{
 					{Topic: "", Value: result},        // Main topic output
@@ -672,7 +673,7 @@ func TestDerivedTopicCreationAndTriggering(t *testing.T) {
 
 	// Track which topics were executed and when
 	var executionOrder []string
-	var results map[string]interface{} = make(map[string]interface{})
+	var results = make(map[string]interface{})
 
 	mockExec := &mockStrategyExecutor{
 		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
@@ -777,9 +778,10 @@ func TestDerivedTopicUpdateTriggering(t *testing.T) {
 
 	mockExec := &mockStrategyExecutor{
 		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
-			if strategyID == "source-strategy" {
+			switch strategyID {
+			case "source-strategy":
 				return fmt.Sprintf("output-%d", executionCount), nil
-			} else if strategyID == "dependent-strategy" {
+			case "dependent-strategy":
 				executionCount++
 				lastInput = inputs
 				return fmt.Sprintf("processed-%d", executionCount), nil

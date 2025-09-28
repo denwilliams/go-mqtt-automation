@@ -43,9 +43,9 @@ type DashboardSystem struct {
 }
 
 type DashboardStats struct {
-	Topics     TopicStats     `json:"topics"`
-	Strategies StrategyStats  `json:"strategies"`
-	MQTT       MQTTStats      `json:"mqtt"`
+	Topics     TopicStats    `json:"topics"`
+	Strategies StrategyStats `json:"strategies"`
+	MQTT       MQTTStats     `json:"mqtt"`
 }
 
 type TopicStats struct {
@@ -62,9 +62,9 @@ type StrategyStats struct {
 }
 
 type MQTTStats struct {
-	Connected        bool      `json:"connected"`
+	Connected         bool      `json:"connected"`
 	MessagesProcessed int64     `json:"messages_processed"`
-	LastMessage      time.Time `json:"last_message"`
+	LastMessage       time.Time `json:"last_message"`
 }
 
 // Topic structures
@@ -84,16 +84,16 @@ type TopicSummary struct {
 }
 
 type TopicDetail struct {
-	Name          string            `json:"name"`
-	Type          string            `json:"type"`
-	LastValue     interface{}       `json:"last_value"`
-	LastUpdated   time.Time         `json:"last_updated"`
-	CreatedAt     time.Time         `json:"created_at"`
-	Inputs        []string          `json:"inputs,omitempty"`
-	InputNames    map[string]string `json:"input_names,omitempty"`
-	StrategyID    string            `json:"strategy_id,omitempty"`
-	EmitToMQTT    bool              `json:"emit_to_mqtt,omitempty"`
-	NoOpUnchanged bool              `json:"noop_unchanged,omitempty"`
+	Name          string                 `json:"name"`
+	Type          string                 `json:"type"`
+	LastValue     interface{}            `json:"last_value"`
+	LastUpdated   time.Time              `json:"last_updated"`
+	CreatedAt     time.Time              `json:"created_at"`
+	Inputs        []string               `json:"inputs,omitempty"`
+	InputNames    map[string]string      `json:"input_names,omitempty"`
+	StrategyID    string                 `json:"strategy_id,omitempty"`
+	EmitToMQTT    bool                   `json:"emit_to_mqtt,omitempty"`
+	NoOpUnchanged bool                   `json:"noop_unchanged,omitempty"`
 	Config        map[string]interface{} `json:"config,omitempty"`
 }
 
@@ -114,35 +114,35 @@ type StrategyListResponse struct {
 }
 
 type StrategySummary struct {
-	ID                 string    `json:"id"`
-	Name               string    `json:"name"`
-	Language           string    `json:"language"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
-	MaxInputs          int       `json:"max_inputs"`
-	DefaultInputNames  []string  `json:"default_input_names"`
+	ID                string    `json:"id"`
+	Name              string    `json:"name"`
+	Language          string    `json:"language"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+	MaxInputs         int       `json:"max_inputs"`
+	DefaultInputNames []string  `json:"default_input_names"`
 }
 
 type StrategyDetail struct {
-	ID                 string                 `json:"id"`
-	Name               string                 `json:"name"`
-	Code               string                 `json:"code"`
-	Language           string                 `json:"language"`
-	Parameters         map[string]interface{} `json:"parameters"`
-	MaxInputs          int                    `json:"max_inputs"`
-	DefaultInputNames  []string               `json:"default_input_names"`
-	CreatedAt          time.Time              `json:"created_at"`
-	UpdatedAt          time.Time              `json:"updated_at"`
+	ID                string                 `json:"id"`
+	Name              string                 `json:"name"`
+	Code              string                 `json:"code"`
+	Language          string                 `json:"language"`
+	Parameters        map[string]interface{} `json:"parameters"`
+	MaxInputs         int                    `json:"max_inputs"`
+	DefaultInputNames []string               `json:"default_input_names"`
+	CreatedAt         time.Time              `json:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at"`
 }
 
 type StrategyCreateRequest struct {
-	ID                 string                 `json:"id"`
-	Name               string                 `json:"name"`
-	Code               string                 `json:"code"`
-	Language           string                 `json:"language"`
-	Parameters         map[string]interface{} `json:"parameters,omitempty"`
-	MaxInputs          int                    `json:"max_inputs,omitempty"`
-	DefaultInputNames  []string               `json:"default_input_names,omitempty"`
+	ID                string                 `json:"id"`
+	Name              string                 `json:"name"`
+	Code              string                 `json:"code"`
+	Language          string                 `json:"language"`
+	Parameters        map[string]interface{} `json:"parameters,omitempty"`
+	MaxInputs         int                    `json:"max_inputs,omitempty"`
+	DefaultInputNames []string               `json:"default_input_names,omitempty"`
 }
 
 // System structures
@@ -245,7 +245,7 @@ func (s *Server) handleAPIDashboard(w http.ResponseWriter, r *http.Request) {
 
 	response := DashboardResponse{
 		System: DashboardSystem{
-			Uptime:  "0m", // TODO: Calculate actual uptime
+			Uptime:  "0m",    // TODO: Calculate actual uptime
 			Version: "1.0.0", // TODO: Get from build info
 			Status:  "healthy",
 		},
@@ -262,9 +262,9 @@ func (s *Server) handleAPIDashboard(w http.ResponseWriter, r *http.Request) {
 				Failed: 0,
 			},
 			MQTT: MQTTStats{
-				Connected:        mqttConnected,
+				Connected:         mqttConnected,
 				MessagesProcessed: 0, // TODO: Track messages
-				LastMessage:      time.Now(),
+				LastMessage:       time.Now(),
 			},
 		},
 	}
