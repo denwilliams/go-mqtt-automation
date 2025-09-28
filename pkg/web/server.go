@@ -443,6 +443,7 @@ func (s *Server) setupRoutes() {
 
 	// Main pages
 	http.HandleFunc("/", s.handleDashboard)
+	http.HandleFunc("/admin", s.handleAdmin)
 	http.HandleFunc("/topics", s.handleTopicsList)
 	http.HandleFunc("/topics/new", s.handleTopicNew)
 	http.HandleFunc("/topics/new/", s.handleTopicNew)
@@ -455,7 +456,24 @@ func (s *Server) setupRoutes() {
 	http.HandleFunc("/system", s.handleSystemConfig)
 	http.HandleFunc("/logs", s.handleLogs)
 
-	// API endpoints
+	// API v1 endpoints
+	http.HandleFunc("/api/v1/dashboard", s.handleAPIDashboard)
+
+	// Topics API
+	http.HandleFunc("/api/v1/topics", s.handleAPIV1Topics)
+	http.HandleFunc("/api/v1/topics/", s.handleAPITopicDetail)
+
+	// Strategies API
+	http.HandleFunc("/api/v1/strategies", s.handleAPIV1Strategies)
+	http.HandleFunc("/api/v1/strategies/", s.handleAPIStrategyDetail)
+
+	// System API
+	http.HandleFunc("/api/v1/system", s.handleAPISystem)
+	http.HandleFunc("/api/v1/system/info", s.handleAPISystemInfo)
+	http.HandleFunc("/api/v1/system/stats", s.handleAPISystemStats)
+	http.HandleFunc("/api/v1/system/activity", s.handleAPISystemActivity)
+
+	// Legacy API endpoints
 	http.HandleFunc("/api/topics", s.handleAPITopics)
 	http.HandleFunc("/api/strategies", s.handleAPIStrategies)
 	http.HandleFunc("/api/system/status", s.handleAPISystemStatus)

@@ -18,6 +18,38 @@ import (
 var strategyIDPattern = regexp.MustCompile(`^[a-z0-9_]+$`)
 
 // Dashboard
+func (s *Server) handleAdmin(w http.ResponseWriter, r *http.Request) {
+	// For now, serve a simple placeholder that will redirect to the React app once built
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <div id="root">
+        <div style="padding: 2rem; font-family: system-ui, sans-serif;">
+            <h1>Admin Dashboard</h1>
+            <p>The new admin interface with shadcn/ui is coming soon!</p>
+            <p>API endpoints are available at:</p>
+            <ul>
+                <li><a href="/api/v1/dashboard">/api/v1/dashboard</a></li>
+                <li><a href="/api/v1/topics">/api/v1/topics</a></li>
+                <li><a href="/api/v1/strategies">/api/v1/strategies</a></li>
+                <li><a href="/api/v1/system/info">/api/v1/system/info</a></li>
+                <li><a href="/api/v1/system/stats">/api/v1/system/stats</a></li>
+            </ul>
+            <p><a href="/">← Back to old interface</a></p>
+        </div>
+    </div>
+</body>
+</html>
+`))
+}
+
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	// Safely get topics with null checks
 	var topicsMap map[string]topics.Topic
