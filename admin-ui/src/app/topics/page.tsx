@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { Trash2, Edit, Plus } from "lucide-react"
 
 interface Topic {
@@ -28,6 +30,7 @@ export default function TopicsPage() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('all')
   const [searchFilter, setSearchFilter] = useState<string>('')
+  const [showSubtopics, setShowSubtopics] = useState<boolean>(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
   const [formData, setFormData] = useState({
@@ -181,12 +184,19 @@ export default function TopicsPage() {
     }
   }
 
-  // Filter topics by search term
+  // Helper function to identify subtopics (derived topics)
+  const isSubtopic = (topicName: string) => {
+    return topicName.includes('/') && !topicName.startsWith('/')
+  }
+
+  // Filter topics by search term, type, and subtopic visibility
   const filteredTopics = topics.filter(topic => {
     const matchesSearch = searchFilter === '' ||
       topic.name.toLowerCase().includes(searchFilter.toLowerCase())
     const matchesType = filter === 'all' || topic.type === filter
-    return matchesSearch && matchesType
+    const matchesSubtopicFilter = showSubtopics || !isSubtopic(topic.name)
+
+    return matchesSearch && matchesType && matchesSubtopicFilter
   })
 
   if (loading) {
@@ -274,6 +284,16 @@ export default function TopicsPage() {
             >
               System
             </Button>
+            <div className="flex items-center space-x-2 ml-4 border-l pl-4">
+              <Switch
+                id="show-subtopics"
+                checked={showSubtopics}
+                onCheckedChange={setShowSubtopics}
+              />
+              <Label htmlFor="show-subtopics" className="text-sm">
+                Show subtopics
+              </Label>
+            </div>
           </div>
         </div>
 
