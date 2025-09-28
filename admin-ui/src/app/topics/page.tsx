@@ -48,7 +48,7 @@ export default function TopicsPage() {
     emit_to_mqtt: false,
     inputs: [] as string[],
     input_names: {} as { [key: string]: string },
-    strategy_id: ''
+    strategy_id: '__none__'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -120,7 +120,7 @@ export default function TopicsPage() {
       emit_to_mqtt: false,
       inputs: [],
       input_names: {},
-      strategy_id: ''
+      strategy_id: '__none__'
     })
     setIsDialogOpen(true)
   }
@@ -133,7 +133,7 @@ export default function TopicsPage() {
       emit_to_mqtt: topic.emit_to_mqtt || false,
       inputs: topic.inputs || [],
       input_names: topic.input_names || {},
-      strategy_id: topic.strategy_id || ''
+      strategy_id: topic.strategy_id || '__none__'
     })
     setIsDialogOpen(true)
   }
@@ -176,7 +176,7 @@ export default function TopicsPage() {
           emit_to_mqtt: formData.emit_to_mqtt,
           inputs: formData.inputs.filter(input => input.trim() !== ''),
           input_names: Object.keys(formData.input_names).length > 0 ? formData.input_names : undefined,
-          strategy_id: formData.strategy_id && formData.strategy_id !== '' ? formData.strategy_id : undefined
+          strategy_id: formData.strategy_id && formData.strategy_id !== '' && formData.strategy_id !== '__none__' ? formData.strategy_id : undefined
         })
       })
 
@@ -565,7 +565,7 @@ export default function TopicsPage() {
                     <SelectValue placeholder="Select a strategy" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Strategy</SelectItem>
+                    <SelectItem value="__none__">No Strategy</SelectItem>
                     {strategies.map((strategy) => (
                       <SelectItem key={strategy.id} value={strategy.id}>
                         {strategy.name} ({strategy.id})
