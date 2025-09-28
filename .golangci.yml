@@ -1,41 +1,46 @@
+version: "2"
 run:
-  timeout: 5m
   go: "1.25"
-
-linters-settings:
-  govet:
-    enable:
-      - shadow
-  dupl:
-    threshold: 200 # Very lenient for existing code
-  lll:
-    line-length: 200 # Very lenient
-
 linters:
-  enable:
-    # Only enable the most critical linters for CI
-    - errcheck    # Check error handling
-    - govet       # Go vet tool
-    - ineffassign # Detect ineffectual assignments
-    - staticcheck # Advanced Go analysis
-    - typecheck   # Type checking
-    - unused      # Find unused code
-    - gosimple    # Simplify code
-    - gofmt       # Ensure proper formatting
-
-  disable-all: false
-
+  settings:
+    dupl:
+      threshold: 200
+    govet:
+      enable:
+        - shadow
+    lll:
+      line-length: 200
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - path: (.+)\.go$
+        text: Error return value.*is not checked
+      - path: (.+)\.go$
+        text: 'ST1000:'
+      - path: (.+)\.go$
+        text: 'ST1020:'
+      - path: (.+)\.go$
+        text: '`.*` is unused'
+      - path: (.+)\.go$
+        text: duplicate
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-use-default: true
-
-  # Be very lenient with issues
   max-issues-per-linter: 50
   max-same-issues: 10
-
-  exclude:
-    # Ignore common patterns in existing code
-    - "Error return value.*is not checked"
-    - "ST1000:"
-    - "ST1020:"
-    - "`.*` is unused"
-    - "duplicate"
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
