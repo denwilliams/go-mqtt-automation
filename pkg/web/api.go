@@ -296,12 +296,13 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get child topics from in-memory topic manager
+	// Get child topics and external topics from in-memory topic manager
 	childTopics := s.topicManager.GetChildTopics()
+	externalTopics := s.topicManager.GetExternalTopics()
 
 	// Convert to slice for filtering and pagination
-	// Allocate space for both database topics and child topics
-	topicList := make([]TopicSummary, 0, len(allTopicConfigs)+len(childTopics))
+	// Allocate space for database topics, child topics, and external topics
+	topicList := make([]TopicSummary, 0, len(allTopicConfigs)+len(childTopics)+len(externalTopics))
 
 	// Process database topics
 	for _, config := range allTopicConfigs {
@@ -356,6 +357,23 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 			Inputs:      childConfig.Inputs,
 			StrategyID:  childConfig.StrategyID,
 			EmitToMQTT:  childConfig.EmitToMQTT,
+		}
+
+		// Apply type filter if specified
+		if topicType != "" && summary.Type != topicType {
+			continue
+		}
+
+		topicList = append(topicList, summary)
+	}
+
+	// Add external topics from in-memory topic manager
+	for _, externalConfig := range externalTopics {
+		summary := TopicSummary{
+			Name:        externalConfig.Name,
+			Type:        string(externalConfig.Type),
+			LastValue:   externalConfig.LastValue,
+			LastUpdated: externalConfig.LastUpdated,
 		}
 
 		// Apply type filter if specified

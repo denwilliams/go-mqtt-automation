@@ -184,9 +184,9 @@ export default function TopicsPage() {
     }
   }
 
-  // Helper function to identify subtopics (derived topics)
-  const isSubtopic = (topicName: string) => {
-    return topicName.includes('/') && !topicName.startsWith('/')
+  // Helper function to identify child topics (internal topics with no strategy)
+  const isChildTopic = (topic: Topic) => {
+    return topic.type === 'internal' && (!topic.strategy_id || topic.strategy_id === '')
   }
 
   // Filter topics by search term, type, and subtopic visibility
@@ -194,7 +194,7 @@ export default function TopicsPage() {
     const matchesSearch = searchFilter === '' ||
       topic.name.toLowerCase().includes(searchFilter.toLowerCase())
     const matchesType = filter === 'all' || topic.type === filter
-    const matchesSubtopicFilter = showSubtopics || !isSubtopic(topic.name)
+    const matchesSubtopicFilter = showSubtopics || !isChildTopic(topic)
 
     return matchesSearch && matchesType && matchesSubtopicFilter
   })
@@ -291,7 +291,7 @@ export default function TopicsPage() {
                 onCheckedChange={setShowSubtopics}
               />
               <Label htmlFor="show-subtopics" className="text-sm">
-                Show subtopics
+                Show child topics
               </Label>
             </div>
           </div>

@@ -586,3 +586,16 @@ func (m *Manager) GetChildTopics() []InternalTopicConfig {
 
 	return childTopics
 }
+
+// GetExternalTopics returns all external topics from in-memory store
+func (m *Manager) GetExternalTopics() []BaseTopicConfig {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	var externalTopics []BaseTopicConfig
+	for _, topic := range m.externalTopics {
+		externalTopics = append(externalTopics, topic.config)
+	}
+
+	return externalTopics
+}
