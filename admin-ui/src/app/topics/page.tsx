@@ -20,6 +20,7 @@ interface Topic {
   last_value: unknown
   last_updated: string
   inputs?: string[]
+  input_names?: { [key: string]: string }
   strategy_id?: string
   emit_to_mqtt?: boolean
 }
@@ -46,6 +47,7 @@ export default function TopicsPage() {
     type: 'internal',
     emit_to_mqtt: false,
     inputs: [] as string[],
+    input_names: {} as { [key: string]: string },
     strategy_id: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -117,6 +119,7 @@ export default function TopicsPage() {
       type: 'internal',
       emit_to_mqtt: false,
       inputs: [],
+      input_names: {},
       strategy_id: ''
     })
     setIsDialogOpen(true)
@@ -129,6 +132,7 @@ export default function TopicsPage() {
       type: topic.type,
       emit_to_mqtt: topic.emit_to_mqtt || false,
       inputs: topic.inputs || [],
+      input_names: topic.input_names || {},
       strategy_id: topic.strategy_id || ''
     })
     setIsDialogOpen(true)
@@ -171,6 +175,7 @@ export default function TopicsPage() {
           type: formData.type,
           emit_to_mqtt: formData.emit_to_mqtt,
           inputs: formData.inputs.filter(input => input.trim() !== ''),
+          input_names: Object.keys(formData.input_names).length > 0 ? formData.input_names : undefined,
           strategy_id: formData.strategy_id && formData.strategy_id !== '' ? formData.strategy_id : undefined
         })
       })
@@ -601,6 +606,29 @@ export default function TopicsPage() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Enter topic names, one per line. At least one input topic is required.
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Input Names (Optional)</label>
+                <Textarea
+                  value={Object.entries(formData.input_names).map(([topic, name]) => `${topic}=${name}`).join('\n')}
+                  onChange={(e) => {
+                    const inputNames: { [key: string]: string } = {}
+                    e.target.value.split('\n').forEach(line => {
+                      const [topic, name] = line.split('=').map(s => s.trim())
+                      if (topic && name) {
+                        inputNames[topic] = name
+                      }
+                    })
+                    setFormData({ ...formData, input_names: inputNames })
+                  }}
+                  placeholder="Optional: assign names to input topics&#10;example:&#10;sensor/temperature=Temperature Sensor&#10;sensor/humidity=Humidity Sensor"
+                  disabled={editingTopic?.type === 'system' || editingTopic?.type === 'external'}
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optionally assign friendly names to input topics using the format: topic=name
                 </p>
               </div>
             </div>
