@@ -48,6 +48,7 @@ export default function TopicsPage() {
     emit_to_mqtt: false,
     inputs: [] as string[],
     input_names: {} as { [key: string]: string },
+    input_names_text: '',
     strategy_id: '__none__'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -120,6 +121,7 @@ export default function TopicsPage() {
       emit_to_mqtt: false,
       inputs: [],
       input_names: {},
+      input_names_text: '',
       strategy_id: '__none__'
     })
     setIsDialogOpen(true)
@@ -133,6 +135,7 @@ export default function TopicsPage() {
       emit_to_mqtt: topic.emit_to_mqtt || false,
       inputs: topic.inputs || [],
       input_names: topic.input_names || {},
+      input_names_text: Object.entries(topic.input_names || {}).map(([topic, name]) => `${topic}=${name}`).join('\n'),
       strategy_id: topic.strategy_id || '__none__'
     })
     setIsDialogOpen(true)
@@ -175,7 +178,21 @@ export default function TopicsPage() {
           type: formData.type,
           emit_to_mqtt: formData.emit_to_mqtt,
           inputs: formData.inputs.filter(input => input.trim() !== ''),
-          input_names: Object.keys(formData.input_names).length > 0 ? formData.input_names : undefined,
+          input_names: (() => {
+            const inputNames: { [key: string]: string } = {}
+            formData.input_names_text.split('\n').forEach(line => {
+              const trimmedLine = line.trim()
+              if (trimmedLine && trimmedLine.includes('=')) {
+                const equalIndex = trimmedLine.indexOf('=')
+                const topic = trimmedLine.substring(0, equalIndex).trim()
+                const name = trimmedLine.substring(equalIndex + 1).trim()
+                if (topic && name) {
+                  inputNames[topic] = name
+                }
+              }
+            })
+            return Object.keys(inputNames).length > 0 ? inputNames : undefined
+          })(),
           strategy_id: formData.strategy_id && formData.strategy_id !== '' && formData.strategy_id !== '__none__' ? formData.strategy_id : undefined
         })
       })
@@ -598,7 +615,7 @@ export default function TopicsPage() {
                   value={formData.inputs.join('\n')}
                   onChange={(e) => setFormData({
                     ...formData,
-                    inputs: e.target.value.split('\n').map(s => s.trim()).filter(s => s !== '')
+                    inputs: e.target.value.split('\n').map(s => s.trim())
                   })}
                   placeholder={`Enter one topic name per line\nexample:\nsensor/temperature\nsensor/humidity`}
                   disabled={editingTopic?.type === 'system' || editingTopic?.type === 'external'}
@@ -612,22 +629,8 @@ export default function TopicsPage() {
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Input Names (Optional)</label>
                 <Textarea
-                  value={Object.entries(formData.input_names).map(([topic, name]) => `${topic}=${name}`).join('\n')}
-                  onChange={(e) => {
-                    const inputNames: { [key: string]: string } = {}
-                    e.target.value.split('\n').forEach(line => {
-                      const trimmedLine = line.trim()
-                      if (trimmedLine && trimmedLine.includes('=')) {
-                        const equalIndex = trimmedLine.indexOf('=')
-                        const topic = trimmedLine.substring(0, equalIndex).trim()
-                        const name = trimmedLine.substring(equalIndex + 1).trim()
-                        if (topic && name) {
-                          inputNames[topic] = name
-                        }
-                      }
-                    })
-                    setFormData({ ...formData, input_names: inputNames })
-                  }}
+                  value={formData.input_names_text}
+                  onChange={(e) => setFormData({ ...formData, input_names_text: e.target.value })}
                   placeholder={`Optional: assign names to input topics\nexample:\nsensor/temperature=Temperature Sensor\nsensor/humidity=Humidity Sensor`}
                   disabled={editingTopic?.type === 'system' || editingTopic?.type === 'external'}
                   rows={3}
