@@ -48,8 +48,8 @@ export default function StrategiesPage() {
     try {
       setLoading(true)
       const url = language && language !== 'all'
-        ? `http://localhost:8080/api/v1/strategies?language=${language}&limit=100`
-        : 'http://localhost:8080/api/v1/strategies?limit=100'
+        ? `/api/v1/strategies?language=${language}&limit=100`
+        : '/api/v1/strategies?limit=100'
 
       const response = await fetch(url)
       if (!response.ok) {
@@ -89,7 +89,7 @@ export default function StrategiesPage() {
   const openEditDialog = async (strategy: Strategy) => {
     try {
       // Fetch full strategy details including code
-      const response = await fetch(`http://localhost:8080/api/v1/strategies/${encodeURIComponent(strategy.id)}`)
+      const response = await fetch(`/api/v1/strategies/${encodeURIComponent(strategy.id)}`)
       if (!response.ok) {
         throw new Error('Failed to fetch strategy details')
       }
@@ -128,8 +128,8 @@ export default function StrategiesPage() {
     setIsSubmitting(true)
     try {
       const url = editingStrategy
-        ? `http://localhost:8080/api/v1/strategies/${encodeURIComponent(editingStrategy.id)}`
-        : 'http://localhost:8080/api/v1/strategies'
+        ? `/api/v1/strategies/${encodeURIComponent(editingStrategy.id)}`
+        : '/api/v1/strategies'
 
       const method = editingStrategy ? 'PUT' : 'POST'
 
@@ -171,7 +171,7 @@ export default function StrategiesPage() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/api/v1/strategies/${encodeURIComponent(strategyId)}`, {
+      const response = await fetch(`/api/v1/strategies/${encodeURIComponent(strategyId)}`, {
         method: 'DELETE'
       })
 

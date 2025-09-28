@@ -41,7 +41,7 @@ export default function Dashboard() {
       if (isInitialLoad) {
         setLoading(true)
       }
-      const response = await fetch('http://localhost:8080/api/v1/dashboard')
+      const response = await fetch('/api/v1/dashboard')
       if (!response.ok) {
         throw new Error('Failed to fetch stats')
       }

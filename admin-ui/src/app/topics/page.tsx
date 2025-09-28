@@ -43,8 +43,8 @@ export default function TopicsPage() {
     try {
       setLoading(true)
       const url = type && type !== 'all'
-        ? `http://localhost:8080/api/v1/topics?type=${type}&limit=100`
-        : 'http://localhost:8080/api/v1/topics?limit=100'
+        ? `/api/v1/topics?type=${type}&limit=100`
+        : '/api/v1/topics?limit=100'
 
       const response = await fetch(url)
       if (!response.ok) {
@@ -113,8 +113,8 @@ export default function TopicsPage() {
     setIsSubmitting(true)
     try {
       const url = editingTopic
-        ? `http://localhost:8080/api/v1/topics/${encodeURIComponent(editingTopic.name)}`
-        : 'http://localhost:8080/api/v1/topics'
+        ? `/api/v1/topics/${encodeURIComponent(editingTopic.name)}`
+        : '/api/v1/topics'
 
       const method = editingTopic ? 'PUT' : 'POST'
 
@@ -152,7 +152,7 @@ export default function TopicsPage() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/api/v1/topics/${encodeURIComponent(topicName)}`, {
+      const response = await fetch(`/api/v1/topics/${encodeURIComponent(topicName)}`, {
         method: 'DELETE'
       })
 

@@ -63,7 +63,7 @@ export default function SystemPage() {
   const fetchSystemInfo = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://localhost:8080/api/v1/system')
+      const response = await fetch('/api/v1/system')
       if (!response.ok) {
         throw new Error('Failed to fetch system information')
       }
