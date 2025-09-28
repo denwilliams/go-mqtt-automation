@@ -2,6 +2,7 @@ package topics
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/denwilliams/go-mqtt-automation/pkg/config"
@@ -13,6 +14,7 @@ type SystemTopic struct {
 	ticker    *time.Ticker
 	stopChan  chan bool
 	isRunning bool
+	wg        sync.WaitGroup
 }
 
 func NewSystemTopic(name string, config map[string]interface{}) *SystemTopic {
@@ -102,6 +104,7 @@ func (st *SystemTopic) Start() error {
 		st.ticker = time.NewTicker(duration)
 		st.isRunning = true
 
+		st.wg.Add(1)
 		go st.runTicker()
 	} else if st.config.Cron != "" {
 		// TODO: Implement cron scheduling
@@ -122,6 +125,9 @@ func (st *SystemTopic) Stop() {
 		st.ticker = nil
 	}
 	st.isRunning = false
+
+	// Wait for the goroutine to finish
+	st.wg.Wait()
 }
 
 func (st *SystemTopic) IsRunning() bool {
@@ -129,6 +135,8 @@ func (st *SystemTopic) IsRunning() bool {
 }
 
 func (st *SystemTopic) runTicker() {
+	defer st.wg.Done()
+
 	for {
 		select {
 		case <-st.stopChan:

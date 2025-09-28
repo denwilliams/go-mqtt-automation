@@ -62,8 +62,9 @@ func (m *mockStrategyExecutor) GetStrategy(strategyID string) (*strategy.Strateg
 
 // Mock state manager for testing
 type mockStateManager struct {
-	saveFunc func(topicName string, value interface{}) error
-	loadFunc func(topicName string) (interface{}, error)
+	saveFunc       func(topicName string, value interface{}) error
+	loadFunc       func(topicName string) (interface{}, error)
+	loadConfigFunc func(topicName string) (interface{}, error)
 }
 
 func (m *mockStateManager) SaveTopicState(topicName string, value interface{}) error {
@@ -76,6 +77,13 @@ func (m *mockStateManager) SaveTopicState(topicName string, value interface{}) e
 func (m *mockStateManager) LoadTopicState(topicName string) (interface{}, error) {
 	if m.loadFunc != nil {
 		return m.loadFunc(topicName)
+	}
+	return nil, nil
+}
+
+func (m *mockStateManager) LoadTopicConfig(topicName string) (interface{}, error) {
+	if m.loadConfigFunc != nil {
+		return m.loadConfigFunc(topicName)
 	}
 	return nil, nil
 }
