@@ -75,13 +75,14 @@ type TopicListResponse struct {
 }
 
 type TopicSummary struct {
-	Name        string      `json:"name"`
-	Type        string      `json:"type"`
-	LastValue   interface{} `json:"last_value"`
-	LastUpdated time.Time   `json:"last_updated"`
-	Inputs      []string    `json:"inputs,omitempty"`
-	StrategyID  string      `json:"strategy_id,omitempty"`
-	EmitToMQTT  bool        `json:"emit_to_mqtt,omitempty"`
+	Name        string            `json:"name"`
+	Type        string            `json:"type"`
+	LastValue   interface{}       `json:"last_value"`
+	LastUpdated time.Time         `json:"last_updated"`
+	Inputs      []string          `json:"inputs,omitempty"`
+	InputNames  map[string]string `json:"input_names,omitempty"`
+	StrategyID  string            `json:"strategy_id,omitempty"`
+	EmitToMQTT  bool              `json:"emit_to_mqtt,omitempty"`
 }
 
 type TopicDetail struct {
@@ -325,6 +326,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 				LastValue:   cfg.LastValue,
 				LastUpdated: cfg.LastUpdated,
 				Inputs:      cfg.Inputs,
+				InputNames:  cfg.InputNames,
 				StrategyID:  cfg.StrategyID,
 				EmitToMQTT:  cfg.EmitToMQTT,
 			}
@@ -356,6 +358,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 			LastValue:   childConfig.LastValue,
 			LastUpdated: childConfig.LastUpdated,
 			Inputs:      childConfig.Inputs,
+			InputNames:  childConfig.InputNames,
 			StrategyID:  childConfig.StrategyID,
 			EmitToMQTT:  childConfig.EmitToMQTT,
 		}
