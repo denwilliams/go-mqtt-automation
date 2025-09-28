@@ -154,8 +154,7 @@ format:
 	$(GOCMD) fmt ./...
 
 lint:
-	@echo "Linting disabled due to Go version compatibility"
-	# golangci-lint run
+	golangci-lint run
 
 # Production build
 build-prod:
