@@ -18,7 +18,7 @@ interface Strategy {
   name: string
   code: string
   language: string
-  parameters?: Record<string, any>
+  parameters?: Record<string, unknown>
   max_inputs: number
   default_input_names?: string[]
   created_at: string
@@ -38,7 +38,7 @@ export default function StrategiesPage() {
     name: '',
     code: '',
     language: 'javascript',
-    parameters: {} as Record<string, any>,
+    parameters: {} as Record<string, unknown>,
     max_inputs: 0,
     default_input_names: [] as string[]
   })

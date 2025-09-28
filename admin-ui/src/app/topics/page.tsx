@@ -14,7 +14,7 @@ import { Trash2, Edit, Plus } from "lucide-react"
 interface Topic {
   name: string
   type: string
-  last_value: any
+  last_value: unknown
   last_updated: string
   inputs?: string[]
   strategy_id?: string
@@ -167,7 +167,7 @@ export default function TopicsPage() {
     }
   }
 
-  const formatValue = (value: any) => {
+  const formatValue = (value: unknown) => {
     if (value === null || value === undefined) return 'null'
     if (typeof value === 'object') return JSON.stringify(value)
     return String(value)
