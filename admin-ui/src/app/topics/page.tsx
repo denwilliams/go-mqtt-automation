@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Trash2, Edit, Plus } from "lucide-react"
@@ -21,21 +21,13 @@ interface Topic {
   emit_to_mqtt?: boolean
 }
 
-interface TopicsResponse {
-  topics: Topic[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    pages: number
-  }
-}
 
 export default function TopicsPage() {
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('all')
+  const [searchFilter, setSearchFilter] = useState<string>('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
   const [formData, setFormData] = useState({
@@ -189,6 +181,14 @@ export default function TopicsPage() {
     }
   }
 
+  // Filter topics by search term
+  const filteredTopics = topics.filter(topic => {
+    const matchesSearch = searchFilter === '' ||
+      topic.name.toLowerCase().includes(searchFilter.toLowerCase())
+    const matchesType = filter === 'all' || topic.type === filter
+    return matchesSearch && matchesType
+  })
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background p-6">
@@ -245,8 +245,19 @@ export default function TopicsPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="mb-6">
+        {/* Search and Filters */}
+        <div className="mb-6 space-y-4">
+          {/* Search */}
+          <div className="max-w-md">
+            <Input
+              placeholder="Search topics by name..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          {/* Filter Buttons */}
           <div className="flex gap-2">
             <Button
               variant={filter === 'all' ? 'default' : 'outline'}
@@ -280,7 +291,7 @@ export default function TopicsPage() {
           <CardHeader>
             <CardTitle>Topics</CardTitle>
             <CardDescription>
-              {topics.length} topics found
+              {filteredTopics.length} of {topics.length} topics {searchFilter && `(filtered by "${searchFilter}")`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -297,7 +308,7 @@ export default function TopicsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {topics.map((topic) => (
+                  {filteredTopics.map((topic) => (
                     <TableRow key={topic.name}>
                       <TableCell className="font-medium">
                         <div className="max-w-xs truncate" title={topic.name}>
@@ -394,9 +405,14 @@ export default function TopicsPage() {
                 </TableBody>
               </Table>
             </div>
+            {filteredTopics.length === 0 && topics.length > 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No topics match the current search and filter criteria.
+              </div>
+            )}
             {topics.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No topics found for the selected filter.
+                No topics found.
               </div>
             )}
           </CardContent>

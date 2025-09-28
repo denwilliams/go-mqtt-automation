@@ -36,9 +36,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchStats = async () => {
+  const fetchStats = async (isInitialLoad = false) => {
     try {
-      setLoading(true)
+      if (isInitialLoad) {
+        setLoading(true)
+      }
       const response = await fetch('http://localhost:8080/api/v1/dashboard')
       if (!response.ok) {
         throw new Error('Failed to fetch stats')
@@ -46,19 +48,22 @@ export default function Dashboard() {
       const result = await response.json()
       if (result.success) {
         setStats(result.data)
+        setError(null) // Clear any previous errors
       } else {
         throw new Error(result.error?.message || 'Unknown error')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
-      setLoading(false)
+      if (isInitialLoad) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
-    fetchStats()
-    const interval = setInterval(fetchStats, 5000) // Refresh every 5 seconds
+    fetchStats(true) // Initial load
+    const interval = setInterval(() => fetchStats(false), 5000) // Refresh every 5 seconds without loading state
     return () => clearInterval(interval)
   }, [])
 
@@ -79,7 +84,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
-            <Button onClick={fetchStats} variant="outline">
+            <Button onClick={() => fetchStats(true)} variant="outline">
               Retry
             </Button>
           </CardContent>

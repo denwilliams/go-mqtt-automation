@@ -19,6 +19,8 @@ go.work
 
 # Database files
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 
 # Configuration files with secrets

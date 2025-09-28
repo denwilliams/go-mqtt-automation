@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Trash2, Edit, Plus } from "lucide-react"
+import Editor from '@monaco-editor/react'
 
 interface Strategy {
   id: string
@@ -24,15 +25,6 @@ interface Strategy {
   updated_at: string
 }
 
-interface StrategiesResponse {
-  strategies: Strategy[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    pages: number
-  }
-}
 
 export default function StrategiesPage() {
   const [strategies, setStrategies] = useState<Strategy[]>([])
@@ -200,6 +192,19 @@ export default function StrategiesPage() {
       return new Date(dateString).toLocaleString()
     } catch {
       return dateString
+    }
+  }
+
+  const getEditorLanguage = (language: string) => {
+    switch (language) {
+      case 'javascript':
+        return 'javascript'
+      case 'lua':
+        return 'lua'
+      case 'go-template':
+        return 'go'
+      default:
+        return 'javascript'
     }
   }
 
@@ -413,6 +418,9 @@ export default function StrategiesPage() {
                     <SelectItem value="go-template">Go Template</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Changing language will update syntax highlighting in the code editor
+                </p>
               </div>
 
               <div className="grid gap-2">
@@ -443,12 +451,25 @@ export default function StrategiesPage() {
 
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Code</label>
-                <Textarea
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  placeholder="Enter code for the strategy"
-                  className="min-h-[300px] font-mono text-sm"
-                />
+                <div className="border rounded-md overflow-hidden">
+                  <Editor
+                    height="400px"
+                    language={getEditorLanguage(formData.language)}
+                    value={formData.code}
+                    onChange={(value) => setFormData({ ...formData, code: value || '' })}
+                    theme="light"
+                    options={{
+                      minimap: { enabled: false },
+                      scrollBeyondLastLine: false,
+                      fontSize: 14,
+                      lineNumbers: 'on',
+                      roundedSelection: false,
+                      scrollbar: { vertical: 'visible', horizontal: 'visible' },
+                      wordWrap: 'on',
+                      automaticLayout: true,
+                    }}
+                  />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Available context methods: context.inputs[], context.emit(), context.log(), context.parameters
                 </p>
