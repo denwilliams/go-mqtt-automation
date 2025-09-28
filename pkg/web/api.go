@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -383,6 +384,11 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 
 		topicList = append(topicList, summary)
 	}
+
+	// Sort topics by name since we merged from multiple sources
+	sort.Slice(topicList, func(i, j int) bool {
+		return topicList[i].Name < topicList[j].Name
+	})
 
 	total := len(topicList)
 	start := (page - 1) * limit
