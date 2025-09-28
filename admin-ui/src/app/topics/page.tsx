@@ -99,15 +99,15 @@ export default function TopicsPage() {
 
   // Permission helpers
   const canEdit = (topic: Topic) => {
-    return topic.type === 'internal'
+    return topic.type === 'internal' && !isChildTopic(topic)
   }
 
   const canDelete = (topic: Topic) => {
-    return topic.type === 'internal'
+    return topic.type === 'internal' && !isChildTopic(topic)
   }
 
   const canEditName = (topic: Topic) => {
-    return topic.type === 'internal'
+    return topic.type === 'internal' && !isChildTopic(topic)
   }
 
   const openCreateDialog = () => {
@@ -419,7 +419,11 @@ export default function TopicsPage() {
                               title={
                                 topic.type === 'system'
                                   ? 'System topics cannot be edited'
-                                  : 'External topics are read-only'
+                                  : topic.type === 'external'
+                                  ? 'External topics are read-only'
+                                  : isChildTopic(topic)
+                                  ? 'Child topics are automatically created and cannot be edited'
+                                  : 'This topic cannot be edited'
                               }
                             >
                               <Edit className="w-4 h-4" />
@@ -442,7 +446,11 @@ export default function TopicsPage() {
                               title={
                                 topic.type === 'system'
                                   ? 'System topics cannot be deleted'
-                                  : 'External topics cannot be deleted'
+                                  : topic.type === 'external'
+                                  ? 'External topics cannot be deleted'
+                                  : isChildTopic(topic)
+                                  ? 'Child topics are automatically created and cannot be deleted'
+                                  : 'This topic cannot be deleted'
                               }
                               className="text-gray-400"
                             >
