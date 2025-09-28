@@ -355,22 +355,22 @@ export default function TopicsPage() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Last Value</TableHead>
-                    <TableHead>Last Updated</TableHead>
-                    <TableHead>Details</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="w-[200px]">Name</TableHead>
+                    <TableHead className="w-[80px]">Type</TableHead>
+                    <TableHead className="w-[150px]">Last Value</TableHead>
+                    <TableHead className="w-[120px]">Last Updated</TableHead>
+                    <TableHead className="w-[150px]">Details</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredTopics.map((topic) => (
                     <TableRow key={topic.name}>
                       <TableCell className="font-medium">
-                        <div className="max-w-xs truncate" title={topic.name}>
+                        <div className="max-w-[190px] truncate" title={topic.name}>
                           {topic.name}
                         </div>
                       </TableCell>
@@ -378,27 +378,29 @@ export default function TopicsPage() {
                         <Badge variant={
                           topic.type === 'external' ? 'default' :
                           topic.type === 'internal' ? 'secondary' : 'outline'
-                        }>
+                        } className="text-xs">
                           {topic.type}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="max-w-xs truncate text-sm" title={formatValue(topic.last_value)}>
+                        <div className="max-w-[140px] truncate text-sm" title={formatValue(topic.last_value)}>
                           {formatValue(topic.last_value)}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(topic.last_updated)}
+                      <TableCell className="text-xs text-muted-foreground">
+                        <div className="max-w-[110px] truncate" title={formatDate(topic.last_updated)}>
+                          {formatDate(topic.last_updated)}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm space-y-1">
+                        <div className="text-xs space-y-1 max-w-[140px]">
                           {topic.inputs && topic.inputs.length > 0 && (
-                            <div>
+                            <div className="truncate" title={`Input topics: ${topic.inputs.join(', ')}`}>
                               <span className="font-medium">Inputs:</span> {topic.inputs.length}
                             </div>
                           )}
                           {topic.strategy_id && (
-                            <div>
+                            <div className="truncate" title={`Strategy: ${topic.strategy_id}`}>
                               <span className="font-medium">Strategy:</span> {topic.strategy_id}
                             </div>
                           )}
@@ -417,7 +419,7 @@ export default function TopicsPage() {
                               size="sm"
                               onClick={() => openEditDialog(topic)}
                             >
-                              <Edit className="w-4 h-4" />
+                              <Edit className="w-3 h-3" />
                             </Button>
                           ) : (
                             <Button
@@ -434,7 +436,7 @@ export default function TopicsPage() {
                                   : 'This topic cannot be edited'
                               }
                             >
-                              <Edit className="w-4 h-4" />
+                              <Edit className="w-3 h-3" />
                             </Button>
                           )}
                           {canDelete(topic) ? (
@@ -444,7 +446,7 @@ export default function TopicsPage() {
                               onClick={() => handleDelete(topic.name)}
                               className="text-red-600 hover:text-red-700"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3 h-3" />
                             </Button>
                           ) : (
                             <Button
@@ -462,7 +464,7 @@ export default function TopicsPage() {
                               }
                               className="text-gray-400"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3 h-3" />
                             </Button>
                           )}
                         </div>
