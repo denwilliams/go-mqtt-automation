@@ -600,7 +600,7 @@ export default function TopicsPage() {
                     ...formData,
                     inputs: e.target.value.split('\n').map(s => s.trim()).filter(s => s !== '')
                   })}
-                  placeholder="Enter one topic name per line&#10;example:&#10;sensor/temperature&#10;sensor/humidity"
+                  placeholder={`Enter one topic name per line\nexample:\nsensor/temperature\nsensor/humidity`}
                   disabled={editingTopic?.type === 'system' || editingTopic?.type === 'external'}
                   rows={4}
                 />
@@ -616,14 +616,19 @@ export default function TopicsPage() {
                   onChange={(e) => {
                     const inputNames: { [key: string]: string } = {}
                     e.target.value.split('\n').forEach(line => {
-                      const [topic, name] = line.split('=').map(s => s.trim())
-                      if (topic && name) {
-                        inputNames[topic] = name
+                      const trimmedLine = line.trim()
+                      if (trimmedLine && trimmedLine.includes('=')) {
+                        const equalIndex = trimmedLine.indexOf('=')
+                        const topic = trimmedLine.substring(0, equalIndex).trim()
+                        const name = trimmedLine.substring(equalIndex + 1).trim()
+                        if (topic && name) {
+                          inputNames[topic] = name
+                        }
                       }
                     })
                     setFormData({ ...formData, input_names: inputNames })
                   }}
-                  placeholder="Optional: assign names to input topics&#10;example:&#10;sensor/temperature=Temperature Sensor&#10;sensor/humidity=Humidity Sensor"
+                  placeholder={`Optional: assign names to input topics\nexample:\nsensor/temperature=Temperature Sensor\nsensor/humidity=Humidity Sensor`}
                   disabled={editingTopic?.type === 'system' || editingTopic?.type === 'external'}
                   rows={3}
                 />
