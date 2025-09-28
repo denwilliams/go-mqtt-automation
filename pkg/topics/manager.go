@@ -571,3 +571,18 @@ func (m *Manager) ReloadTopicFromDatabase(topicName string) error {
 
 	return nil
 }
+
+// GetChildTopics returns all child topics (internal topics with no strategy)
+func (m *Manager) GetChildTopics() []InternalTopicConfig {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	var childTopics []InternalTopicConfig
+	for _, topic := range m.internalTopics {
+		if topic.config.StrategyID == "" {
+			childTopics = append(childTopics, topic.config)
+		}
+	}
+
+	return childTopics
+}

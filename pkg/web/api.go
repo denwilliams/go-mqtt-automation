@@ -296,8 +296,14 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get child topics from in-memory topic manager
+	childTopics := s.topicManager.GetChildTopics()
+
 	// Convert to slice for filtering and pagination
-	topicList := make([]TopicSummary, 0, len(allTopicConfigs))
+	// Allocate space for both database topics and child topics
+	topicList := make([]TopicSummary, 0, len(allTopicConfigs)+len(childTopics))
+
+	// Process database topics
 	for _, config := range allTopicConfigs {
 		// Extract common fields based on config type
 		var summary TopicSummary
@@ -330,6 +336,26 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 		default:
 			s.logger.Printf("Unknown topic config type: %T", cfg)
 			continue
+		}
+
+		// Apply type filter if specified
+		if topicType != "" && summary.Type != topicType {
+			continue
+		}
+
+		topicList = append(topicList, summary)
+	}
+
+	// Add child topics from in-memory topic manager
+	for _, childConfig := range childTopics {
+		summary := TopicSummary{
+			Name:        childConfig.Name,
+			Type:        string(childConfig.Type),
+			LastValue:   childConfig.LastValue,
+			LastUpdated: childConfig.LastUpdated,
+			Inputs:      childConfig.Inputs,
+			StrategyID:  childConfig.StrategyID,
+			EmitToMQTT:  childConfig.EmitToMQTT,
 		}
 
 		// Apply type filter if specified
