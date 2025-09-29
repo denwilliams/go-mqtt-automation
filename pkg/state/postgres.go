@@ -136,13 +136,18 @@ func (p *PostgreSQLDatabase) saveInternalTopic(config topics.InternalTopicConfig
 		return fmt.Errorf("failed to marshal inputs: %w", err)
 	}
 
+	inputNamesJSON, err := json.Marshal(config.InputNames)
+	if err != nil {
+		return fmt.Errorf("failed to marshal input names: %w", err)
+	}
+
 	query := `
-		UPDATE topics 
-		SET inputs = $1, strategy_id = $2, emit_to_mqtt = $3, noop_unchanged = $4
-		WHERE name = $5
+		UPDATE topics
+		SET inputs = $1, input_names = $2, strategy_id = $3, emit_to_mqtt = $4, noop_unchanged = $5
+		WHERE name = $6
 	`
 
-	_, err = p.db.Exec(query, string(inputsJSON), config.StrategyID, config.EmitToMQTT, config.NoOpUnchanged, config.Name)
+	_, err = p.db.Exec(query, string(inputsJSON), string(inputNamesJSON), config.StrategyID, config.EmitToMQTT, config.NoOpUnchanged, config.Name)
 	return err
 }
 
@@ -152,21 +157,21 @@ func (p *PostgreSQLDatabase) saveSystemTopic(config topics.SystemTopicConfig) er
 
 func (p *PostgreSQLDatabase) LoadTopic(name string) (interface{}, error) {
 	query := `
-		SELECT name, type, inputs, strategy_id, emit_to_mqtt, noop_unchanged, 
+		SELECT name, type, inputs, input_names, strategy_id, emit_to_mqtt, noop_unchanged,
 		       last_value, last_updated, created_at, config
-		FROM topics 
+		FROM topics
 		WHERE name = $1
 	`
 
 	var topicName, topicType string
-	var inputs, strategyID sql.NullString
+	var inputs, inputNames, strategyID sql.NullString
 	var emitToMQTT, noopUnchanged sql.NullBool
 	var lastValue sql.NullString
 	var lastUpdated, createdAt time.Time
 	var config string
 
 	err := p.db.QueryRow(query, name).Scan(
-		&topicName, &topicType, &inputs, &strategyID,
+		&topicName, &topicType, &inputs, &inputNames, &strategyID,
 		&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &createdAt, &config,
 	)
 	if err != nil {
@@ -176,13 +181,13 @@ func (p *PostgreSQLDatabase) LoadTopic(name string) (interface{}, error) {
 		return nil, fmt.Errorf("failed to load topic: %w", err)
 	}
 
-	return p.buildTopicConfig(topicName, topicType, inputs, strategyID,
+	return p.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID,
 		emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config)
 }
 
 func (p *PostgreSQLDatabase) LoadAllTopics() ([]interface{}, error) {
 	query := `
-		SELECT name, type, inputs, strategy_id, emit_to_mqtt, noop_unchanged, 
+		SELECT name, type, inputs, input_names, strategy_id, emit_to_mqtt, noop_unchanged,
 		       last_value, last_updated, created_at, config
 		FROM topics
 		ORDER BY name
@@ -197,21 +202,21 @@ func (p *PostgreSQLDatabase) LoadAllTopics() ([]interface{}, error) {
 	var topics []interface{}
 	for rows.Next() {
 		var topicName, topicType string
-		var inputs, strategyID sql.NullString
+		var inputs, inputNames, strategyID sql.NullString
 		var emitToMQTT, noopUnchanged sql.NullBool
 		var lastValue sql.NullString
 		var lastUpdated, createdAt time.Time
 		var config string
 
 		err := rows.Scan(
-			&topicName, &topicType, &inputs, &strategyID,
+			&topicName, &topicType, &inputs, &inputNames, &strategyID,
 			&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &createdAt, &config,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan topic: %w", err)
 		}
 
-		topicConfig, err := p.buildTopicConfig(topicName, topicType, inputs, strategyID,
+		topicConfig, err := p.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID,
 			emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build topic config for %s: %w", topicName, err)
@@ -223,7 +228,7 @@ func (p *PostgreSQLDatabase) LoadAllTopics() ([]interface{}, error) {
 	return topics, rows.Err()
 }
 
-func (p *PostgreSQLDatabase) buildTopicConfig(name, topicType string, inputs, strategyID sql.NullString,
+func (p *PostgreSQLDatabase) buildTopicConfig(name, topicType string, inputs, inputNames, strategyID sql.NullString,
 	emitToMQTT, noopUnchanged sql.NullBool, lastValue sql.NullString, lastUpdated, createdAt time.Time,
 	config string) (interface{}, error) {
 
@@ -259,9 +264,17 @@ func (p *PostgreSQLDatabase) buildTopicConfig(name, topicType string, inputs, st
 			}
 		}
 
+		var parsedInputNames map[string]string
+		if inputNames.Valid && inputNames.String != "" {
+			if err := json.Unmarshal([]byte(inputNames.String), &parsedInputNames); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal input names: %w", err)
+			}
+		}
+
 		return topics.InternalTopicConfig{
 			BaseTopicConfig: baseConfig,
 			Inputs:          parsedInputs,
+			InputNames:      parsedInputNames,
 			StrategyID:      strategyID.String,
 			EmitToMQTT:      emitToMQTT.Bool,
 			NoOpUnchanged:   noopUnchanged.Bool,
