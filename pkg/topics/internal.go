@@ -177,7 +177,17 @@ func (it *InternalTopic) emitToMQTT(value interface{}) error {
 	}
 
 	// Publish to MQTT
-	return it.manager.mqttClient.Publish(it.config.Name, payload, false)
+	err = it.manager.mqttClient.Publish(it.config.Name, payload, false)
+	if err != nil {
+		return err
+	}
+
+	// Log successful MQTT emission
+	if it.manager.logger != nil {
+		it.manager.logger.Printf("Published to MQTT topic: %s (%d bytes)", it.config.Name, len(payload))
+	}
+
+	return nil
 }
 
 func (it *InternalTopic) valuesEqual(a, b interface{}) bool {
