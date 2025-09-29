@@ -118,11 +118,42 @@ make run                # Build and run
 ### Strategy Development
 
 All strategies use JavaScript execution environment with context object:
-- `context.inputs` - Input topic values
+- `context.inputs` - Input topic values (keyed by topic name or input name)
+- `context.inputNames` - Mapping of topic paths to friendly names
 - `context.emit(value)` - Emit to main topic
 - `context.emit('/subtopic', value)` - Emit to derived topic
 - `context.log(message)` - Log message
 - `context.parameters` - Strategy parameters
+
+#### Input Names Feature
+
+Topics can define friendly names for input topics, making strategy development more intuitive:
+
+**Database Configuration:**
+```json
+{
+  "teslamate/cars/1/battery_level": "Battery Level",
+  "teslamate/cars/1/healthy": "Tesla Health Status"
+}
+```
+
+**Strategy Access:**
+```javascript
+function process(context) {
+  // Access by friendly name (if input names are configured)
+  const batteryLevel = context.inputs["Battery Level"];
+
+  // Access by original topic path (always available)
+  const healthStatus = context.inputs["teslamate/cars/1/healthy"];
+
+  // View all input name mappings
+  context.log("Input names available:", context.inputNames);
+
+  return batteryLevel > 50;
+}
+```
+
+**Note:** Input names are passed through the entire execution pipeline from database → topic manager → strategy engine → JavaScript context.
 
 ### Template System
 
@@ -158,3 +189,21 @@ syntax error at or near "AUTOINCREMENT"
 exceeded maximum template depth (100000)
 ```
 **Solution**: Use unique template names, avoid generic `content` blocks
+
+### Input Names Not Available in Strategies
+```
+Strategy log: Input Names: {}
+```
+**Problem**: Input names are saved to database but not accessible in strategy execution context
+
+**Root Cause**: The `AddInternalTopic` method signature was missing the `inputNames` parameter, causing input names to be lost during topic loading from database
+
+**Solution**: Updated the entire pipeline:
+1. `AddInternalTopic(name, inputs, inputNames, strategyID)` - Added inputNames parameter
+2. `main.go` topic loading - Pass `cfg.InputNames` to `AddInternalTopic`
+3. `api.go` topic creation - Pass `req.InputNames` to `AddInternalTopic`
+
+**Files Modified:**
+- `pkg/topics/manager.go:84` - Updated method signature and implementation
+- `cmd/server/main.go:195` - Pass input names when loading topics
+- `pkg/web/api.go:465` - Pass input names when creating topics via API

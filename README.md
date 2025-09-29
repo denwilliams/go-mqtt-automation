@@ -5,8 +5,8 @@ A Go-based home automation system that processes hundreds of external MQTT event
 ## Features
 
 - **MQTT Integration**: Process 100+ external MQTT topics with robust connection management
-- **Internal Topic System**: Create custom topics with configurable input mappings and strategies
-- **Strategy Engine**: Execute user-defined JavaScript code for automation logic
+- **Internal Topic System**: Create custom topics with configurable input mappings, friendly input names, and strategies
+- **Strategy Engine**: Execute user-defined JavaScript code for automation logic with access to input names
 - **System Topics**: Time-based triggers, schedulers, and system events
 - **State Persistence**: Full system state recovery after restart with SQLite or PostgreSQL
 - **Web UI**: Simple HTML forms for topic and strategy management
@@ -30,6 +30,33 @@ A Go-based home automation system that processes hundreds of external MQTT event
    ```
 
 4. **Access the web interface**: http://localhost:8080
+
+## Key Features
+
+### Input Names for Strategies
+
+Topics can define friendly names for input topics, making strategy development more intuitive:
+
+**Example**: Instead of accessing `context.inputs["teslamate/cars/1/battery_level"]` in your JavaScript strategy, you can access `context.inputs["Battery Level"]` by configuring input names in the topic settings.
+
+**Benefits**:
+- More readable strategy code
+- Easier maintenance when MQTT topic paths change
+- Better user experience in the web interface
+
+**Usage in JavaScript strategies**:
+```javascript
+function process(context) {
+  // Access by friendly name
+  const batteryLevel = context.inputs["Battery Level"];
+  const healthStatus = context.inputs["Tesla Health Status"];
+
+  // View all available input names
+  context.log("Available inputs:", Object.keys(context.inputNames));
+
+  return batteryLevel > 50 && healthStatus;
+}
+```
 
 ## Architecture
 
