@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/denwilliams/go-mqtt-automation/pkg/config"
 	"github.com/denwilliams/go-mqtt-automation/pkg/mqtt"
@@ -20,6 +21,7 @@ type Server struct {
 	mqttClient     *mqtt.Client
 	logger         *log.Logger
 	server         *http.Server
+	startTime      time.Time
 }
 
 func NewServer(cfg *config.Config, topicManager *topics.Manager, strategyEngine *strategy.Engine,
@@ -36,6 +38,7 @@ func NewServer(cfg *config.Config, topicManager *topics.Manager, strategyEngine 
 		stateManager:   stateManager,
 		mqttClient:     mqttClient,
 		logger:         logger,
+		startTime:      time.Now(),
 	}
 
 	return server, nil

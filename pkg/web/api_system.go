@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"runtime"
@@ -186,27 +187,27 @@ func (s *Server) handleAPISystem(w http.ResponseWriter, r *http.Request) {
 	extendedInfo := map[string]interface{}{
 		"system": map[string]interface{}{
 			"version":      "1.0.0", // TODO: Get from build info
-			"uptime":       "0m",    // TODO: Calculate actual uptime
+			"uptime":       s.formatUptime(),
 			"status":       "healthy",
 			"pid":          pid,
-			"memory_usage": "0 MB", // TODO: Calculate actual memory usage
+			"memory_usage": s.formatMemoryUsage(),
 			"goroutines":   runtime.NumGoroutine(),
 		},
 		"database": map[string]interface{}{
-			"type":             "sqlite", // TODO: Get from config
+			"type":             s.getDatabaseType(),
 			"status":           "connected",
 			"total_topics":     topicCounts[topics.TopicTypeExternal] + topicCounts[topics.TopicTypeInternal] + topicCounts[topics.TopicTypeSystem],
 			"total_strategies": len(allStrategies),
 		},
 		"mqtt": map[string]interface{}{
-			"broker_url":         "localhost:1883", // TODO: Get from config
+			"broker_url":         s.getMQTTBrokerURL(),
 			"connected":          mqttConnected,
 			"messages_processed": 0, // TODO: Track actual messages
 			"subscriptions":      0, // TODO: Track actual subscriptions
 		},
 		"performance": map[string]interface{}{
-			"cpu_usage":    "0%",   // TODO: Calculate actual CPU usage
-			"memory_usage": "0 MB", // TODO: Calculate actual memory usage
+			"cpu_usage":    "0%", // TODO: Calculate actual CPU usage
+			"memory_usage": s.formatMemoryUsage(),
 			"disk_usage":   "0 GB", // TODO: Calculate actual disk usage
 			"network_io": map[string]interface{}{
 				"bytes_sent":     0, // TODO: Track actual network I/O
@@ -243,4 +244,45 @@ func (s *Server) handleAPISystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeAPIResponse(w, response)
+}
+
+// Helper functions for calculating real system metrics
+
+func (s *Server) formatUptime() string {
+	uptime := time.Since(s.startTime)
+	if uptime < time.Minute {
+		return fmt.Sprintf("%.0fs", uptime.Seconds())
+	} else if uptime < time.Hour {
+		return fmt.Sprintf("%.0fm", uptime.Minutes())
+	} else if uptime < 24*time.Hour {
+		hours := int(uptime.Hours())
+		minutes := int(uptime.Minutes()) % 60
+		return fmt.Sprintf("%dh %dm", hours, minutes)
+	} else {
+		days := int(uptime.Hours()) / 24
+		hours := int(uptime.Hours()) % 24
+		return fmt.Sprintf("%dd %dh", days, hours)
+	}
+}
+
+func (s *Server) formatMemoryUsage() string {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// Convert bytes to MB
+	allocMB := float64(m.Alloc) / 1024 / 1024
+	return fmt.Sprintf("%.1f MB", allocMB)
+}
+
+func (s *Server) getDatabaseType() string {
+	if s.config != nil && s.config.Database.Type != "" {
+		return s.config.Database.Type
+	}
+	return "sqlite"
+}
+
+func (s *Server) getMQTTBrokerURL() string {
+	if s.config != nil && s.config.MQTT.Broker != "" {
+		return s.config.MQTT.Broker
+	}
+	return "localhost:1883"
 }
