@@ -178,6 +178,13 @@ func (jse *JavaScriptExecutor) createContextObject(vm *goja.Runtime, context Exe
 	}
 	obj.Set("inputs", inputsObj)
 
+	// Set input names (friendly names for input topics)
+	inputNamesObj := vm.NewObject()
+	for key, name := range context.InputNames {
+		inputNamesObj.Set(key, name)
+	}
+	obj.Set("inputNames", inputNamesObj)
+
 	// Set other context properties
 	obj.Set("triggeringTopic", context.TriggeringTopic)
 	obj.Set("lastOutputs", context.LastOutputs)

@@ -18,6 +18,7 @@ type Strategy struct {
 
 type ExecutionContext struct {
 	InputValues     map[string]interface{} `json:"input_values"`
+	InputNames      map[string]string      `json:"input_names,omitempty"`
 	TriggeringTopic string                 `json:"triggering_topic"`
 	LastOutputs     interface{}            `json:"last_outputs"`
 	Parameters      map[string]interface{} `json:"parameters"`

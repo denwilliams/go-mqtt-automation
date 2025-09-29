@@ -156,7 +156,7 @@ func (it *InternalTopic) ProcessInputs(triggerTopic string) error {
 	}
 
 	// Execute strategy
-	emittedEvents, err := it.manager.ExecuteStrategy(it.config.StrategyID, inputValues, triggerTopic, it.config.LastValue)
+	emittedEvents, err := it.manager.ExecuteStrategy(it.config.StrategyID, inputValues, it.config.InputNames, triggerTopic, it.config.LastValue)
 	if err != nil {
 		return fmt.Errorf("strategy execution failed: %w", err)
 	}

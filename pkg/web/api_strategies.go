@@ -299,7 +299,7 @@ func (s *Server) handleAPIStrategyTest(w http.ResponseWriter, r *http.Request, s
 	_ = strat.Parameters // Using the strategy's default parameters
 
 	// Execute strategy
-	events, err := s.strategyEngine.ExecuteStrategy(strategyID, req.Inputs, "test", nil)
+	events, err := s.strategyEngine.ExecuteStrategy(strategyID, req.Inputs, nil, "test", nil)
 
 	response := StrategyTestResponse{
 		EmittedEvents: events,

@@ -462,7 +462,7 @@ func (s *Server) handleAPITopicsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create in-memory version
-	_, err := s.topicManager.AddInternalTopic(req.Name, req.Inputs, req.StrategyID)
+	_, err := s.topicManager.AddInternalTopic(req.Name, req.Inputs, req.InputNames, req.StrategyID)
 	if err != nil {
 		s.logger.Printf("Failed to create topic in memory: %v", err)
 		// Try to reload from database instead
