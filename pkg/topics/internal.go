@@ -244,7 +244,8 @@ func (it *InternalTopic) emitToSubtopic(topicPath string, value interface{}) err
 	}
 
 	// Create or update the subtopic as a derived internal topic
-	return it.manager.createOrUpdateDerivedTopic(fullTopicName, value)
+	// Child topics inherit MQTT emission setting from parent
+	return it.manager.createOrUpdateDerivedTopic(fullTopicName, value, it.config.EmitToMQTT)
 }
 
 func (it *InternalTopic) SetStrategyID(strategyID string) {

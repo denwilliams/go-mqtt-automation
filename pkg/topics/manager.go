@@ -402,7 +402,7 @@ func (m *Manager) shouldLogTopicUpdateUnsafe(topicName string) bool {
 }
 
 // createOrUpdateDerivedTopic creates or updates a derived internal topic (from strategy emissions)
-func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}) error {
+func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}, emitToMQTT bool) error {
 	m.mutex.Lock()
 
 	// Check if topic already exists as an internal topic
@@ -412,10 +412,21 @@ func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}
 		existingTopic.config.LastValue = value
 		existingTopic.config.LastUpdated = time.Now()
 
+		// Update MQTT emission setting to match parent topic
+		existingTopic.config.EmitToMQTT = emitToMQTT
+
 		// Save state to database
 		if err := m.SaveTopicState(topicName, value); err != nil {
 			m.mutex.Unlock()
 			return fmt.Errorf("failed to save topic state: %w", err)
+		}
+
+		// Emit to MQTT if enabled
+		if emitToMQTT {
+			if err := existingTopic.emitToMQTT(value); err != nil {
+				m.mutex.Unlock()
+				return fmt.Errorf("failed to emit to MQTT: %w", err)
+			}
 		}
 
 		// Release lock before triggering other topics to prevent deadlock
@@ -458,7 +469,7 @@ func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}
 			},
 			Inputs:        []string{}, // Derived topics have no inputs
 			StrategyID:    "",         // Derived topics have no strategy
-			EmitToMQTT:    false,      // Default to not emitting derived topics to MQTT
+			EmitToMQTT:    emitToMQTT, // Inherit MQTT emission setting from parent topic
 			NoOpUnchanged: false,
 		},
 		manager: m,
