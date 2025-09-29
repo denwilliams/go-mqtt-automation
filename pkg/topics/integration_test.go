@@ -67,19 +67,19 @@ func TestChainedTopicDataFlow(t *testing.T) {
 	sensorTopic := manager.AddExternalTopic("sensor/temperature")
 
 	// 2. First internal topic (doubles the sensor value)
-	doubledTopic, err := manager.AddInternalTopic("processed/doubled", []string{"sensor/temperature"}, "multiply-by-2")
+	doubledTopic, err := manager.AddInternalTopic("processed/doubled", []string{"sensor/temperature"}, nil, "multiply-by-2", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add doubled topic: %v", err)
 	}
 
 	// 3. Second internal topic (adds 10 to doubled value)
-	adjustedTopic, err := manager.AddInternalTopic("processed/adjusted", []string{"processed/doubled"}, "add-10")
+	adjustedTopic, err := manager.AddInternalTopic("processed/adjusted", []string{"processed/doubled"}, nil, "add-10", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add adjusted topic: %v", err)
 	}
 
 	// 4. Final internal topic (formats as string)
-	finalTopic, err := manager.AddInternalTopic("output/formatted", []string{"processed/adjusted"}, "format-string")
+	finalTopic, err := manager.AddInternalTopic("output/formatted", []string{"processed/adjusted"}, nil, "format-string", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add final topic: %v", err)
 	}
@@ -198,19 +198,19 @@ func TestBranchingTopicChains(t *testing.T) {
 	sensorTopic := manager.AddExternalTopic("sensor/room-temp")
 
 	// Branch 1: Temperature conversion
-	fahrenheitTopic, err := manager.AddInternalTopic("converted/fahrenheit", []string{"sensor/room-temp"}, "celsius-to-fahrenheit")
+	fahrenheitTopic, err := manager.AddInternalTopic("converted/fahrenheit", []string{"sensor/room-temp"}, nil, "celsius-to-fahrenheit", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add fahrenheit topic: %v", err)
 	}
 
 	// Branch 2: Status determination
-	statusTopic, err := manager.AddInternalTopic("status/temperature", []string{"sensor/room-temp"}, "temperature-status")
+	statusTopic, err := manager.AddInternalTopic("status/temperature", []string{"sensor/room-temp"}, nil, "temperature-status", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add status topic: %v", err)
 	}
 
 	// Branch 3: Alert checking
-	alertTopic, err := manager.AddInternalTopic("alerts/temperature", []string{"sensor/room-temp"}, "alert-check")
+	alertTopic, err := manager.AddInternalTopic("alerts/temperature", []string{"sensor/room-temp"}, nil, "alert-check", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add alert topic: %v", err)
 	}
@@ -337,13 +337,13 @@ func TestConvergentTopicChains(t *testing.T) {
 	// Convergent topic that averages all temperatures
 	avgTopic, err := manager.AddInternalTopic("calculated/average-temp",
 		[]string{"sensors/living-room/temp", "sensors/kitchen/temp", "sensors/bedroom/temp"},
-		"average-temperature")
+		nil, "average-temperature", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add average topic: %v", err)
 	}
 
 	// Final topic that controls HVAC based on average
-	hvacTopic, err := manager.AddInternalTopic("control/hvac", []string{"calculated/average-temp"}, "hvac-control")
+	hvacTopic, err := manager.AddInternalTopic("control/hvac", []string{"calculated/average-temp"}, nil, "hvac-control", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add HVAC topic: %v", err)
 	}
@@ -466,12 +466,12 @@ func TestComplexChainWithErrors(t *testing.T) {
 	// Set up validation chain
 	sensorTopic := manager.AddExternalTopic("sensor/raw-temp")
 
-	validatedTopic, err := manager.AddInternalTopic("validated/temp", []string{"sensor/raw-temp"}, "validate-sensor")
+	validatedTopic, err := manager.AddInternalTopic("validated/temp", []string{"sensor/raw-temp"}, nil, "validate-sensor", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add validated topic: %v", err)
 	}
 
-	safetyTopic, err := manager.AddInternalTopic("safety/temp-check", []string{"validated/temp"}, "safety-check")
+	safetyTopic, err := manager.AddInternalTopic("safety/temp-check", []string{"validated/temp"}, nil, "safety-check", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add safety topic: %v", err)
 	}

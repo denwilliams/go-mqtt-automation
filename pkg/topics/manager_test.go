@@ -163,7 +163,7 @@ func TestAddInternalTopic(t *testing.T) {
 	manager := NewManager(nil)
 
 	inputs := []string{"sensors/temp1", "sensors/temp2"}
-	topic, err := manager.AddInternalTopic("calculated/average", inputs, "test-strategy")
+	topic, err := manager.AddInternalTopic("calculated/average", inputs, nil, "test-strategy", false, false)
 
 	if err != nil {
 		t.Fatalf("AddInternalTopic() failed: %v", err)
@@ -199,7 +199,7 @@ func TestAddInternalTopic(t *testing.T) {
 	}
 
 	// Try to add duplicate
-	_, err = manager.AddInternalTopic("calculated/average", inputs, "other-strategy")
+	_, err = manager.AddInternalTopic("calculated/average", inputs, nil, "other-strategy", false, false)
 	if err == nil {
 		t.Error("expected error when adding duplicate internal topic")
 	}
@@ -248,7 +248,7 @@ func TestRemoveTopic(t *testing.T) {
 
 	// Add topics of different types
 	extTopic := manager.AddExternalTopic("sensors/temp")
-	intTopic, _ := manager.AddInternalTopic("calc/avg", []string{"input"}, "strategy")
+	intTopic, _ := manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", false, false)
 	sysTopic := manager.AddSystemTopic("system/test", map[string]interface{}{})
 
 	if len(manager.topics) != 3 {
@@ -320,7 +320,7 @@ func TestListTopics(t *testing.T) {
 
 	// Add topics of different types
 	manager.AddExternalTopic("sensors/temp")
-	manager.AddInternalTopic("calc/avg", []string{"input"}, "strategy")
+	manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", false, false)
 	manager.AddSystemTopic("system/test", map[string]interface{}{})
 
 	topics := manager.ListTopics()
@@ -354,7 +354,7 @@ func TestListTopicsByType(t *testing.T) {
 	// Add multiple topics of different types
 	manager.AddExternalTopic("sensors/temp1")
 	manager.AddExternalTopic("sensors/temp2")
-	manager.AddInternalTopic("calc/avg", []string{"input"}, "strategy")
+	manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", false, false)
 	manager.AddSystemTopic("system/test", map[string]interface{}{})
 
 	// List external topics only
@@ -406,7 +406,7 @@ func TestNotifyTopicUpdate(t *testing.T) {
 	extTopic.Emit(25.5) // Set the value first
 
 	// Add internal topic that depends on the external topic
-	_, err := manager.AddInternalTopic("processed/temp", []string{"sensors/temp"}, "test-strategy")
+	_, err := manager.AddInternalTopic("processed/temp", []string{"sensors/temp"}, nil, "test-strategy", false, false)
 	if err != nil {
 		t.Fatalf("Failed to add internal topic: %v", err)
 	}
@@ -441,7 +441,7 @@ func TestGetTopicCount(t *testing.T) {
 	// Add topics
 	manager.AddExternalTopic("sensors/temp1")
 	manager.AddExternalTopic("sensors/temp2")
-	manager.AddInternalTopic("calc/avg", []string{"input"}, "strategy")
+	manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", false, false)
 	manager.AddSystemTopic("system/test", map[string]interface{}{})
 
 	counts = manager.GetTopicCount()
@@ -625,13 +625,13 @@ func TestInternalTopicTriggering(t *testing.T) {
 	manager.SetStateManager(&mockStateManager{})
 
 	// Create parent topic that emits to subtopic
-	_, err := manager.AddInternalTopic("tesla/mycar", []string{"sensors/battery_level"}, "parent-strategy")
+	_, err := manager.AddInternalTopic("tesla/mycar", []string{"sensors/battery_level"}, nil, "parent-strategy", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create parent topic: %v", err)
 	}
 
 	// Create child topic that depends on parent's subtopic
-	_, err = manager.AddInternalTopic("tesla/mycar/battery/alerts", []string{"tesla/mycar/battery"}, "child-strategy")
+	_, err = manager.AddInternalTopic("tesla/mycar/battery/alerts", []string{"tesla/mycar/battery"}, nil, "child-strategy", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create child topic: %v", err)
 	}
@@ -703,18 +703,18 @@ func TestDerivedTopicCreationAndTriggering(t *testing.T) {
 	manager.SetStateManager(&mockStateManager{})
 
 	// Create main topic that emits to multiple subtopics
-	_, err := manager.AddInternalTopic("vehicle/status", []string{"sensors/raw_data"}, "emitter-strategy")
+	_, err := manager.AddInternalTopic("vehicle/status", []string{"sensors/raw_data"}, nil, "emitter-strategy", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create main topic: %v", err)
 	}
 
 	// Create topics that depend on the derived subtopics
-	_, err = manager.AddInternalTopic("vehicle/battery/alerts", []string{"vehicle/status/battery"}, "battery-monitor")
+	_, err = manager.AddInternalTopic("vehicle/battery/alerts", []string{"vehicle/status/battery"}, nil, "battery-monitor", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create battery monitor: %v", err)
 	}
 
-	_, err = manager.AddInternalTopic("vehicle/speed/alerts", []string{"vehicle/status/speed"}, "speed-monitor")
+	_, err = manager.AddInternalTopic("vehicle/speed/alerts", []string{"vehicle/status/speed"}, nil, "speed-monitor", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create speed monitor: %v", err)
 	}
@@ -794,13 +794,13 @@ func TestDerivedTopicUpdateTriggering(t *testing.T) {
 	manager.SetStateManager(&mockStateManager{})
 
 	// Create source topic that emits to subtopic
-	_, err := manager.AddInternalTopic("source", []string{"trigger"}, "source-strategy")
+	_, err := manager.AddInternalTopic("source", []string{"trigger"}, nil, "source-strategy", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create source topic: %v", err)
 	}
 
 	// Create dependent topic
-	_, err = manager.AddInternalTopic("dependent", []string{"source/output"}, "dependent-strategy")
+	_, err = manager.AddInternalTopic("dependent", []string{"source/output"}, nil, "dependent-strategy", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create dependent topic: %v", err)
 	}

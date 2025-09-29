@@ -81,7 +81,7 @@ func (m *Manager) AddExternalTopic(name string) *ExternalTopic {
 	return topic
 }
 
-func (m *Manager) AddInternalTopic(name string, inputs []string, inputNames map[string]string, strategyID string) (*InternalTopic, error) {
+func (m *Manager) AddInternalTopic(name string, inputs []string, inputNames map[string]string, strategyID string, emitToMQTT bool, noOpUnchanged bool) (*InternalTopic, error) {
 	m.mutex.Lock()
 	defer func() {
 		m.mutex.Unlock()
@@ -111,10 +111,14 @@ func (m *Manager) AddInternalTopic(name string, inputs []string, inputNames map[
 		}
 	}
 
+	// Apply MQTT emission and noop settings
+	topic.SetEmitToMQTT(emitToMQTT)
+	topic.SetNoOpUnchanged(noOpUnchanged)
+
 	m.internalTopics[name] = topic
 	m.topics[name] = topic
 
-	m.logger.Printf("Added internal topic: %s with inputs: %v", name, inputs)
+	m.logger.Printf("Added internal topic: %s with inputs: %v (MQTT: %v, NoOp: %v)", name, inputs, emitToMQTT, noOpUnchanged)
 	return topic, nil
 }
 
