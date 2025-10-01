@@ -192,10 +192,12 @@ func (a *Application) loadTopics() error {
 	for _, config := range topicConfigs {
 		switch cfg := config.(type) {
 		case topics.InternalTopicConfig:
-			_, err := a.topicManager.AddInternalTopic(cfg.Name, cfg.Inputs, cfg.InputNames, cfg.StrategyID, cfg.EmitToMQTT, cfg.NoOpUnchanged)
+			topic, err := a.topicManager.AddInternalTopic(cfg.Name, cfg.Inputs, cfg.InputNames, cfg.StrategyID, cfg.EmitToMQTT, cfg.NoOpUnchanged)
 			if err != nil {
 				a.logger.Printf("Failed to load internal topic %s: %v", cfg.Name, err)
 			} else {
+				// Restore the last value and timestamp from database
+				topic.UpdateConfig(cfg)
 				a.logger.Printf("Loaded internal topic: %s", cfg.Name)
 			}
 		case topics.SystemTopicConfig:
