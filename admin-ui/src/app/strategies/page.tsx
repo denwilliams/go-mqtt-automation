@@ -42,6 +42,7 @@ export default function StrategiesPage() {
     max_inputs: 0,
     default_input_names: [] as string[]
   })
+  const [defaultInputNamesText, setDefaultInputNamesText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fetchStrategies = async (language?: string) => {
@@ -83,6 +84,7 @@ export default function StrategiesPage() {
       max_inputs: 0,
       default_input_names: []
     })
+    setDefaultInputNamesText('')
     setIsDialogOpen(true)
   }
 
@@ -109,6 +111,7 @@ export default function StrategiesPage() {
         max_inputs: fullStrategy.max_inputs || 0,
         default_input_names: fullStrategy.default_input_names || []
       })
+      setDefaultInputNamesText((fullStrategy.default_input_names || []).join(', '))
       setIsDialogOpen(true)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to load strategy details')
@@ -125,6 +128,12 @@ export default function StrategiesPage() {
       return
     }
 
+    // Parse default input names from text field before submitting
+    const parsedInputNames = defaultInputNamesText
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s !== '')
+
     setIsSubmitting(true)
     try {
       const url = editingStrategy
@@ -140,7 +149,7 @@ export default function StrategiesPage() {
         language: formData.language || 'javascript',
         parameters: Object.keys(formData.parameters).length > 0 ? formData.parameters : undefined,
         max_inputs: formData.max_inputs || 0,
-        default_input_names: formData.default_input_names.length > 0 ? formData.default_input_names : undefined
+        default_input_names: parsedInputNames.length > 0 ? parsedInputNames : undefined
       }
 
       const response = await fetch(url, {
@@ -437,15 +446,12 @@ export default function StrategiesPage() {
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Default Input Names (Optional)</label>
                 <Input
-                  value={formData.default_input_names.join(', ')}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    default_input_names: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')
-                  })}
+                  value={defaultInputNamesText}
+                  onChange={(e) => setDefaultInputNamesText(e.target.value)}
                   placeholder="Comma-separated list of default input names"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Enter input names separated by commas
+                  Enter input names separated by commas (e.g., "Input 1, Input 2, Input 3")
                 </p>
               </div>
 
