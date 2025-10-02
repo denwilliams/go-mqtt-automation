@@ -43,6 +43,7 @@ export default function StrategiesPage() {
     default_input_names: [] as string[]
   })
   const [defaultInputNamesText, setDefaultInputNamesText] = useState('')
+  const [parametersText, setParametersText] = useState('{}')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fetchStrategies = async (language?: string) => {
@@ -85,6 +86,7 @@ export default function StrategiesPage() {
       default_input_names: []
     })
     setDefaultInputNamesText('')
+    setParametersText('{}')
     setIsDialogOpen(true)
   }
 
@@ -112,6 +114,7 @@ export default function StrategiesPage() {
         default_input_names: fullStrategy.default_input_names || []
       })
       setDefaultInputNamesText((fullStrategy.default_input_names || []).join(', '))
+      setParametersText(JSON.stringify(fullStrategy.parameters || {}, null, 2))
       setIsDialogOpen(true)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to load strategy details')
@@ -134,6 +137,15 @@ export default function StrategiesPage() {
       .map(s => s.trim())
       .filter(s => s !== '')
 
+    // Parse parameters from JSON text field
+    let parsedParameters = {}
+    try {
+      parsedParameters = JSON.parse(parametersText)
+    } catch {
+      alert('Invalid JSON in parameters field')
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const url = editingStrategy
@@ -147,7 +159,7 @@ export default function StrategiesPage() {
         name: formData.name,
         code: formData.code,
         language: formData.language || 'javascript',
-        parameters: Object.keys(formData.parameters).length > 0 ? formData.parameters : undefined,
+        parameters: Object.keys(parsedParameters).length > 0 ? parsedParameters : undefined,
         max_inputs: formData.max_inputs || 0,
         default_input_names: parsedInputNames.length > 0 ? parsedInputNames : undefined
       }
@@ -484,15 +496,8 @@ export default function StrategiesPage() {
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Parameters (JSON, Optional)</label>
                 <Textarea
-                  value={JSON.stringify(formData.parameters, null, 2)}
-                  onChange={(e) => {
-                    try {
-                      const parsed = JSON.parse(e.target.value || '{}')
-                      setFormData({ ...formData, parameters: parsed })
-                    } catch {
-                      // Invalid JSON, keep the text for editing
-                    }
-                  }}
+                  value={parametersText}
+                  onChange={(e) => setParametersText(e.target.value)}
                   placeholder='{"key": "value"}'
                   className="min-h-[100px] font-mono text-sm"
                 />
