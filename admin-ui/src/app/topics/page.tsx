@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Trash2, Edit, Plus } from "lucide-react"
+import { useTopics } from "@/hooks/useTopics"
 
 interface Topic {
   name: string
@@ -33,10 +34,7 @@ interface Strategy {
 
 
 export default function TopicsPage() {
-  const [topics, setTopics] = useState<Topic[]>([])
   const [strategies, setStrategies] = useState<Strategy[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('all')
   const [searchFilter, setSearchFilter] = useState<string>('')
   const [showSubtopics, setShowSubtopics] = useState<boolean>(false)
@@ -53,29 +51,8 @@ export default function TopicsPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const fetchTopics = async (type?: string) => {
-    try {
-      setLoading(true)
-      const url = type && type !== 'all'
-        ? `/api/v1/topics?type=${type}&limit=100`
-        : '/api/v1/topics?limit=100'
-
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error('Failed to fetch topics')
-      }
-      const result = await response.json()
-      if (result.success) {
-        setTopics(result.data.topics || [])
-      } else {
-        throw new Error(result.error?.message || 'Unknown error')
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Use custom hook for topics fetching
+  const { topics, loading, error, loadingMore, observerTarget, refetch } = useTopics(filter)
 
   const fetchStrategies = async () => {
     try {
@@ -91,10 +68,6 @@ export default function TopicsPage() {
       console.error('Failed to fetch strategies:', err)
     }
   }
-
-  useEffect(() => {
-    fetchTopics(filter === 'all' ? undefined : filter)
-  }, [filter])
 
   useEffect(() => {
     fetchStrategies()
@@ -189,7 +162,7 @@ export default function TopicsPage() {
       }
 
       setIsDialogOpen(false)
-      fetchTopics(filter === 'all' ? undefined : filter)
+      refetch()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to save topic')
     } finally {
@@ -212,7 +185,7 @@ export default function TopicsPage() {
         throw new Error(errorData.error?.message || 'Failed to delete topic')
       }
 
-      fetchTopics(filter === 'all' ? undefined : filter)
+      refetch()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete topic')
     }
@@ -263,7 +236,7 @@ export default function TopicsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">{error}</p>
-          <Button onClick={() => fetchTopics(filter === 'all' ? undefined : filter)} variant="outline">
+          <Button onClick={refetch} variant="outline">
             Retry
           </Button>
         </CardContent>
@@ -479,9 +452,16 @@ export default function TopicsPage() {
                 No topics match the current search and filter criteria.
               </div>
             )}
-            {topics.length === 0 && (
+            {topics.length === 0 && !loading && (
               <div className="text-center py-8 text-muted-foreground">
                 No topics found.
+              </div>
+            )}
+            {/* Infinite scroll trigger */}
+            <div ref={observerTarget} className="h-4" />
+            {loadingMore && (
+              <div className="text-center py-4 text-muted-foreground">
+                Loading more topics...
               </div>
             )}
           </CardContent>
