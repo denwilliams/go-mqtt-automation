@@ -1,234 +1,276 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Trash2, Edit, Plus } from "lucide-react"
-import Editor from '@monaco-editor/react'
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Trash2, Edit, Plus } from "lucide-react";
+import Editor from "@monaco-editor/react";
 
 interface Strategy {
-  id: string
-  name: string
-  code: string
-  language: string
-  parameters?: Record<string, unknown>
-  max_inputs: number
-  default_input_names?: string[]
-  created_at: string
-  updated_at: string
+  id: string;
+  name: string;
+  code: string;
+  language: string;
+  parameters?: Record<string, unknown>;
+  max_inputs: number;
+  default_input_names?: string[];
+  created_at: string;
+  updated_at: string;
 }
 
-
 export default function StrategiesPage() {
-  const [strategies, setStrategies] = useState<Strategy[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<string>('all')
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null)
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>("all");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null);
   const [formData, setFormData] = useState({
-    id: '',
-    name: '',
-    code: '',
-    language: 'javascript',
+    id: "",
+    name: "",
+    code: "",
+    language: "javascript",
     parameters: {} as Record<string, unknown>,
     max_inputs: 0,
-    default_input_names: [] as string[]
-  })
-  const [defaultInputNamesText, setDefaultInputNamesText] = useState('')
-  const [parametersText, setParametersText] = useState('{}')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+    default_input_names: [] as string[],
+  });
+  const [defaultInputNamesText, setDefaultInputNamesText] = useState("");
+  const [parametersText, setParametersText] = useState("{}");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchStrategies = async (language?: string) => {
     try {
-      setLoading(true)
-      const url = language && language !== 'all'
-        ? `/api/v1/strategies?language=${language}&limit=100`
-        : '/api/v1/strategies?limit=100'
+      setLoading(true);
+      const url =
+        language && language !== "all"
+          ? `/api/v1/strategies?language=${language}&limit=100`
+          : "/api/v1/strategies?limit=100";
 
-      const response = await fetch(url)
+      const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Failed to fetch strategies')
+        throw new Error("Failed to fetch strategies");
       }
-      const result = await response.json()
+      const result = await response.json();
       if (result.success) {
-        setStrategies(result.data.strategies || [])
+        setStrategies(result.data.strategies || []);
       } else {
-        throw new Error(result.error?.message || 'Unknown error')
+        throw new Error(result.error?.message || "Unknown error");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchStrategies(filter === 'all' ? undefined : filter)
-  }, [filter])
+    fetchStrategies(filter === "all" ? undefined : filter);
+  }, [filter]);
 
   const openCreateDialog = () => {
-    setEditingStrategy(null)
+    setEditingStrategy(null);
     setFormData({
-      id: '',
-      name: '',
+      id: "",
+      name: "",
       code: '// Strategy code here\nfunction process(context) {\n  // Your automation logic here\n  \n  // Access input values:\n  // const inputValue = context.inputs["input_topic_name"];\n  \n  // Emit to main topic:\n  // context.emit(value);\n  \n  // Emit to subtopic:\n  // context.emit("/subtopic", value);\n  \n  // Log messages:\n  // context.log("Strategy executed");\n}',
-      language: 'javascript',
+      language: "javascript",
       parameters: {},
       max_inputs: 0,
-      default_input_names: []
-    })
-    setDefaultInputNamesText('')
-    setParametersText('{}')
-    setIsDialogOpen(true)
-  }
+      default_input_names: [],
+    });
+    setDefaultInputNamesText("");
+    setParametersText("{}");
+    setIsDialogOpen(true);
+  };
 
   const openEditDialog = async (strategy: Strategy) => {
     try {
       // Fetch full strategy details including code
-      const response = await fetch(`/api/v1/strategies/${encodeURIComponent(strategy.id)}`)
+      const response = await fetch(
+        `/api/v1/strategies/${encodeURIComponent(strategy.id)}`
+      );
       if (!response.ok) {
-        throw new Error('Failed to fetch strategy details')
+        throw new Error("Failed to fetch strategy details");
       }
-      const result = await response.json()
+      const result = await response.json();
       if (!result.success) {
-        throw new Error(result.error?.message || 'Failed to fetch strategy details')
+        throw new Error(
+          result.error?.message || "Failed to fetch strategy details"
+        );
       }
 
-      const fullStrategy = result.data
-      setEditingStrategy(fullStrategy)
+      const fullStrategy = result.data;
+      setEditingStrategy(fullStrategy);
       setFormData({
         id: fullStrategy.id,
         name: fullStrategy.name,
-        code: fullStrategy.code || '',
-        language: fullStrategy.language || 'javascript',
+        code: fullStrategy.code || "",
+        language: fullStrategy.language || "javascript",
         parameters: fullStrategy.parameters || {},
         max_inputs: fullStrategy.max_inputs || 0,
-        default_input_names: fullStrategy.default_input_names || []
-      })
-      setDefaultInputNamesText((fullStrategy.default_input_names || []).join(', '))
-      setParametersText(JSON.stringify(fullStrategy.parameters || {}, null, 2))
-      setIsDialogOpen(true)
+        default_input_names: fullStrategy.default_input_names || [],
+      });
+      setDefaultInputNamesText(
+        (fullStrategy.default_input_names || []).join(", ")
+      );
+      setParametersText(JSON.stringify(fullStrategy.parameters || {}, null, 2));
+      setIsDialogOpen(true);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to load strategy details')
+      alert(
+        err instanceof Error ? err.message : "Failed to load strategy details"
+      );
     }
-  }
+  };
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
-      alert('Strategy name is required')
-      return
+      alert("Strategy name is required");
+      return;
     }
     if (!formData.code.trim()) {
-      alert('Strategy code is required')
-      return
+      alert("Strategy code is required");
+      return;
     }
 
     // Parse default input names from text field before submitting
     const parsedInputNames = defaultInputNamesText
-      .split(',')
-      .map(s => s.trim())
-      .filter(s => s !== '')
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s !== "");
 
     // Parse parameters from JSON text field
-    let parsedParameters = {}
+    let parsedParameters = {};
     try {
-      parsedParameters = JSON.parse(parametersText)
+      parsedParameters = JSON.parse(parametersText);
     } catch {
-      alert('Invalid JSON in parameters field')
-      return
+      alert("Invalid JSON in parameters field");
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
       const url = editingStrategy
         ? `/api/v1/strategies/${encodeURIComponent(editingStrategy.id)}`
-        : '/api/v1/strategies'
+        : "/api/v1/strategies";
 
-      const method = editingStrategy ? 'PUT' : 'POST'
+      const method = editingStrategy ? "PUT" : "POST";
 
       const payload = {
         id: formData.id || undefined,
         name: formData.name,
         code: formData.code,
-        language: formData.language || 'javascript',
-        parameters: Object.keys(parsedParameters).length > 0 ? parsedParameters : undefined,
+        language: formData.language || "javascript",
+        parameters:
+          Object.keys(parsedParameters).length > 0
+            ? parsedParameters
+            : undefined,
         max_inputs: formData.max_inputs || 0,
-        default_input_names: parsedInputNames.length > 0 ? parsedInputNames : undefined
-      }
+        default_input_names:
+          parsedInputNames.length > 0 ? parsedInputNames : undefined,
+      };
 
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload)
-      })
+        body: JSON.stringify(payload),
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error?.message || 'Failed to save strategy')
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Failed to save strategy");
       }
 
-      setIsDialogOpen(false)
-      fetchStrategies(filter === 'all' ? undefined : filter)
+      setIsDialogOpen(false);
+      fetchStrategies(filter === "all" ? undefined : filter);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to save strategy')
+      alert(err instanceof Error ? err.message : "Failed to save strategy");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleDelete = async (strategyId: string) => {
     if (!confirm(`Are you sure you want to delete strategy "${strategyId}"?`)) {
-      return
+      return;
     }
 
     try {
-      const response = await fetch(`/api/v1/strategies/${encodeURIComponent(strategyId)}`, {
-        method: 'DELETE'
-      })
+      const response = await fetch(
+        `/api/v1/strategies/${encodeURIComponent(strategyId)}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error?.message || 'Failed to delete strategy')
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error?.message || "Failed to delete strategy"
+        );
       }
 
-      fetchStrategies(filter === 'all' ? undefined : filter)
+      fetchStrategies(filter === "all" ? undefined : filter);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete strategy')
+      alert(err instanceof Error ? err.message : "Failed to delete strategy");
     }
-  }
+  };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Never'
+    if (!dateString) return "Never";
     try {
-      return new Date(dateString).toLocaleString()
+      return new Date(dateString).toLocaleString();
     } catch {
-      return dateString
+      return dateString;
     }
-  }
+  };
 
   const getEditorLanguage = (language: string) => {
     switch (language) {
-      case 'javascript':
-        return 'javascript'
-      case 'lua':
-        return 'lua'
-      case 'go-template':
-        return 'go'
+      case "javascript":
+        return "javascript";
+      case "lua":
+        return "lua";
+      case "go-template":
+        return "go";
       default:
-        return 'javascript'
+        return "javascript";
     }
-  }
-
+  };
 
   if (loading) {
     return (
@@ -239,7 +281,7 @@ export default function StrategiesPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -252,14 +294,19 @@ export default function StrategiesPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">{error}</p>
-              <Button onClick={() => fetchStrategies(filter === 'all' ? undefined : filter)} variant="outline">
+              <Button
+                onClick={() =>
+                  fetchStrategies(filter === "all" ? undefined : filter)
+                }
+                variant="outline"
+              >
                 Retry
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -269,7 +316,9 @@ export default function StrategiesPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Strategies Management</h1>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Strategies Management
+              </h1>
               <p className="text-muted-foreground">
                 Create and manage automation strategies
               </p>
@@ -290,26 +339,26 @@ export default function StrategiesPage() {
         <div className="mb-6">
           <div className="flex gap-2">
             <Button
-              variant={filter === 'all' ? 'default' : 'outline'}
-              onClick={() => setFilter('all')}
+              variant={filter === "all" ? "default" : "outline"}
+              onClick={() => setFilter("all")}
             >
               All Strategies ({strategies.length})
             </Button>
             <Button
-              variant={filter === 'javascript' ? 'default' : 'outline'}
-              onClick={() => setFilter('javascript')}
+              variant={filter === "javascript" ? "default" : "outline"}
+              onClick={() => setFilter("javascript")}
             >
               JavaScript
             </Button>
             <Button
-              variant={filter === 'lua' ? 'default' : 'outline'}
-              onClick={() => setFilter('lua')}
+              variant={filter === "lua" ? "default" : "outline"}
+              onClick={() => setFilter("lua")}
             >
               Lua
             </Button>
             <Button
-              variant={filter === 'go-template' ? 'default' : 'outline'}
-              onClick={() => setFilter('go-template')}
+              variant={filter === "go-template" ? "default" : "outline"}
+              onClick={() => setFilter("go-template")}
             >
               Go Template
             </Button>
@@ -341,7 +390,10 @@ export default function StrategiesPage() {
                   {strategies.map((strategy) => (
                     <TableRow key={strategy.id}>
                       <TableCell className="font-medium">
-                        <div className="max-w-xs truncate" title={strategy.name}>
+                        <div
+                          className="max-w-xs truncate"
+                          title={strategy.name}
+                        >
                           {strategy.name}
                         </div>
                       </TableCell>
@@ -349,7 +401,9 @@ export default function StrategiesPage() {
                         <Badge variant="outline">{strategy.language}</Badge>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {strategy.max_inputs === 0 ? 'Unlimited' : strategy.max_inputs}
+                        {strategy.max_inputs === 0
+                          ? "Unlimited"
+                          : strategy.max_inputs}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDate(strategy.created_at)}
@@ -394,13 +448,12 @@ export default function StrategiesPage() {
           <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {editingStrategy ? 'Edit Strategy' : 'Create New Strategy'}
+                {editingStrategy ? "Edit Strategy" : "Create New Strategy"}
               </DialogTitle>
               <DialogDescription>
                 {editingStrategy
-                  ? 'Update the strategy configuration and code below.'
-                  : 'Fill in the details to create a new automation strategy.'
-                }
+                  ? "Update the strategy configuration and code below."
+                  : "Fill in the details to create a new automation strategy."}
               </DialogDescription>
             </DialogHeader>
 
@@ -409,7 +462,9 @@ export default function StrategiesPage() {
                 <label className="text-sm font-medium">Strategy ID</label>
                 <Input
                   value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, id: e.target.value })
+                  }
                   placeholder="Enter unique strategy ID"
                   disabled={!!editingStrategy}
                 />
@@ -419,7 +474,9 @@ export default function StrategiesPage() {
                 <label className="text-sm font-medium">Strategy Name</label>
                 <Input
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   placeholder="Enter strategy name"
                 />
               </div>
@@ -428,7 +485,9 @@ export default function StrategiesPage() {
                 <label className="text-sm font-medium">Language</label>
                 <Select
                   value={formData.language}
-                  onValueChange={(value) => setFormData({ ...formData, language: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, language: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select language" />
@@ -440,30 +499,41 @@ export default function StrategiesPage() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Changing language will update syntax highlighting in the code editor
+                  Changing language will update syntax highlighting in the code
+                  editor
                 </p>
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Max Inputs (0 = unlimited)</label>
+                <label className="text-sm font-medium">
+                  Max Inputs (0 = unlimited)
+                </label>
                 <Input
                   type="number"
                   min="0"
                   value={formData.max_inputs}
-                  onChange={(e) => setFormData({ ...formData, max_inputs: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      max_inputs: parseInt(e.target.value) || 0,
+                    })
+                  }
                   placeholder="Maximum number of inputs"
                 />
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Default Input Names (Optional)</label>
+                <label className="text-sm font-medium">
+                  Default Input Names (Optional)
+                </label>
                 <Input
                   value={defaultInputNamesText}
                   onChange={(e) => setDefaultInputNamesText(e.target.value)}
                   placeholder="Comma-separated list of default input names"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Enter input names separated by commas (e.g., "Input 1, Input 2, Input 3")
+                  Enter input names separated by commas (e.g., "Input 1, Input
+                  2, Input 3")
                 </p>
               </div>
 
@@ -474,27 +544,32 @@ export default function StrategiesPage() {
                     height="400px"
                     language={getEditorLanguage(formData.language)}
                     value={formData.code}
-                    onChange={(value) => setFormData({ ...formData, code: value || '' })}
+                    onChange={(value) =>
+                      setFormData({ ...formData, code: value || "" })
+                    }
                     theme="light"
                     options={{
                       minimap: { enabled: false },
                       scrollBeyondLastLine: false,
                       fontSize: 14,
-                      lineNumbers: 'on',
+                      lineNumbers: "on",
                       roundedSelection: false,
-                      scrollbar: { vertical: 'visible', horizontal: 'visible' },
-                      wordWrap: 'on',
+                      scrollbar: { vertical: "visible", horizontal: "visible" },
+                      wordWrap: "on",
                       automaticLayout: true,
                     }}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Available context methods: context.inputs[], context.emit(), context.log(), context.parameters
+                  Available context methods: context.inputs[], context.emit(),
+                  context.log(), context.parameters
                 </p>
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Parameters (JSON, Optional)</label>
+                <label className="text-sm font-medium">
+                  Parameters (JSON, Optional)
+                </label>
                 <Textarea
                   value={parametersText}
                   onChange={(e) => setParametersText(e.target.value)}
@@ -502,7 +577,8 @@ export default function StrategiesPage() {
                   className="min-h-[100px] font-mono text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
-                  JSON object with strategy parameters accessible via context.parameters
+                  JSON object with strategy parameters accessible via
+                  context.parameters
                 </p>
               </div>
             </div>
@@ -512,12 +588,16 @@ export default function StrategiesPage() {
                 Cancel
               </Button>
               <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : (editingStrategy ? 'Update' : 'Create')}
+                {isSubmitting
+                  ? "Saving..."
+                  : editingStrategy
+                  ? "Update"
+                  : "Create"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
     </div>
-  )
+  );
 }
