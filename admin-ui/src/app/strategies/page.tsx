@@ -532,8 +532,8 @@ export default function StrategiesPage() {
                   placeholder="Comma-separated list of default input names"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Enter input names separated by commas (e.g., "Input 1, Input
-                  2, Input 3")
+                  Enter input names separated by commas (e.g., &quot;Input 1, Input
+                  2, Input 3&quot;)
                 </p>
               </div>
 
