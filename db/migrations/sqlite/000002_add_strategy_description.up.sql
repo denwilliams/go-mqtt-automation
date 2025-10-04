@@ -1,0 +1,17 @@
+-- Add description column to strategies table
+
+ALTER TABLE strategies ADD COLUMN description TEXT DEFAULT '';
+
+-- Update existing built-in strategies with descriptions
+UPDATE strategies SET description = 'Emits the first non-null input value. Useful for creating topic aliases or fallback chains.' WHERE id = 'alias';
+UPDATE strategies SET description = 'Converts the input value to a boolean. Returns `true` for truthy values, `false` otherwise.' WHERE id = 'bool';
+UPDATE strategies SET description = 'Performs a logical NOT operation on the input value. Returns `true` if the input is falsy, `false` if truthy.' WHERE id = 'not';
+UPDATE strategies SET description = 'Sums all numeric input values. Non-numeric inputs are ignored. Returns `null` if no numeric inputs are found.' WHERE id = 'add';
+UPDATE strategies SET description = 'Subtracts the second input (`subtrahend`) from the first input (`minuend`). Returns `null` if either input is non-numeric.' WHERE id = 'subtract';
+UPDATE strategies SET description = 'Multiplies all numeric input values together. Non-numeric inputs are ignored. Returns `null` if no numeric inputs are found.' WHERE id = 'multiply';
+UPDATE strategies SET description = 'Returns `true` if all input values are truthy, `false` otherwise. Returns `true` if there are no inputs.' WHERE id = 'and';
+UPDATE strategies SET description = 'Returns `true` if any input value is truthy, `false` otherwise. Returns `false` if there are no inputs.' WHERE id = 'or';
+UPDATE strategies SET description = 'Extracts a specific field from an object input. The field name is specified via the `field` parameter. Returns `null` if the input is not an object or the field does not exist.' WHERE id = 'pick';
+UPDATE strategies SET description = 'Returns `true` if the input value is within the specified range (inclusive), `false` otherwise. The range is defined by `min` and `max` parameters (default: 0-100).' WHERE id = 'inside';
+UPDATE strategies SET description = 'Returns `true` if the input value is outside the specified range, `false` otherwise. The range is defined by `min` and `max` parameters (default: 0-100).' WHERE id = 'outside';
+UPDATE strategies SET description = 'Toggles a boolean value each time it is triggered. Emits an object with a `value` field that alternates between `true` and `false`. The initial value is `false`.' WHERE id = 'toggle';

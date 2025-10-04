@@ -101,7 +101,7 @@ func (e *Engine) ListStrategies() map[string]*Strategy {
 	return result
 }
 
-func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}) ([]EmitEvent, error) {
+func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) ([]EmitEvent, error) {
 	e.mutex.RLock()
 	strategy, exists := e.strategies[strategyID]
 	if !exists {
@@ -116,13 +116,24 @@ func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{
 	}
 	e.mutex.RUnlock()
 
+	// Merge parameters: topic parameters override strategy defaults
+	mergedParameters := make(map[string]interface{})
+	// Start with strategy defaults
+	for k, v := range strategy.Parameters {
+		mergedParameters[k] = v
+	}
+	// Override with topic-specific parameters
+	for k, v := range topicParameters {
+		mergedParameters[k] = v
+	}
+
 	// Create execution context
 	context := ExecutionContext{
 		InputValues:     inputs,
 		InputNames:      inputNames,
 		TriggeringTopic: triggerTopic,
 		LastOutputs:     lastOutput,
-		Parameters:      strategy.Parameters,
+		Parameters:      mergedParameters,
 		TopicName:       "", // This would be set by the topic manager
 	}
 

@@ -155,8 +155,8 @@ func (it *InternalTopic) ProcessInputs(triggerTopic string) error {
 		}
 	}
 
-	// Execute strategy
-	emittedEvents, err := it.manager.ExecuteStrategy(it.config.StrategyID, inputValues, it.config.InputNames, triggerTopic, it.config.LastValue)
+	// Execute strategy with topic parameters
+	emittedEvents, err := it.manager.ExecuteStrategy(it.config.StrategyID, inputValues, it.config.InputNames, triggerTopic, it.config.LastValue, it.config.Parameters)
 	if err != nil {
 		return fmt.Errorf("strategy execution failed: %w", err)
 	}
@@ -201,6 +201,10 @@ func (it *InternalTopic) GetConfig() InternalTopicConfig {
 
 func (it *InternalTopic) UpdateConfig(config InternalTopicConfig) {
 	it.config = config
+}
+
+func (it *InternalTopic) SetParameters(parameters map[string]interface{}) {
+	it.config.Parameters = parameters
 }
 
 func (it *InternalTopic) SetEmitToMQTT(emit bool) {

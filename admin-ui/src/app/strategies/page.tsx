@@ -42,6 +42,7 @@ import Editor from "@monaco-editor/react";
 interface Strategy {
   id: string;
   name: string;
+  description: string;
   code: string;
   language: string;
   parameters?: Record<string, unknown>;
@@ -61,6 +62,7 @@ export default function StrategiesPage() {
   const [formData, setFormData] = useState({
     id: "",
     name: "",
+    description: "",
     code: "",
     language: "javascript",
     parameters: {} as Record<string, unknown>,
@@ -105,6 +107,7 @@ export default function StrategiesPage() {
     setFormData({
       id: "",
       name: "",
+      description: "",
       code: '// Strategy code here\nfunction process(context) {\n  // Your automation logic here\n  \n  // Access input values:\n  // const inputValue = context.inputs["input_topic_name"];\n  \n  // Emit to main topic:\n  // context.emit(value);\n  \n  // Emit to subtopic:\n  // context.emit("/subtopic", value);\n  \n  // Log messages:\n  // context.log("Strategy executed");\n}',
       language: "javascript",
       parameters: {},
@@ -137,6 +140,7 @@ export default function StrategiesPage() {
       setFormData({
         id: fullStrategy.id,
         name: fullStrategy.name,
+        description: fullStrategy.description || "",
         code: fullStrategy.code || "",
         language: fullStrategy.language || "javascript",
         parameters: fullStrategy.parameters || {},
@@ -191,6 +195,7 @@ export default function StrategiesPage() {
       const payload = {
         id: formData.id || undefined,
         name: formData.name,
+        description: formData.description || undefined,
         code: formData.code,
         language: formData.language || "javascript",
         parameters:
@@ -379,6 +384,7 @@ export default function StrategiesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Language</TableHead>
                     <TableHead>Max Inputs</TableHead>
                     <TableHead>Created At</TableHead>
@@ -395,6 +401,14 @@ export default function StrategiesPage() {
                           title={strategy.name}
                         >
                           {strategy.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        <div
+                          className="max-w-md truncate"
+                          title={strategy.description}
+                        >
+                          {strategy.description || <span className="italic">No description</span>}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -479,6 +493,21 @@ export default function StrategiesPage() {
                   }
                   placeholder="Enter strategy name"
                 />
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Description (Markdown supported)</label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  placeholder="Describe what this strategy does and what topics it emits"
+                  className="min-h-[80px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Explain how the strategy works and what topics it emits. Markdown formatting is supported.
+                </p>
               </div>
 
               <div className="grid gap-2">

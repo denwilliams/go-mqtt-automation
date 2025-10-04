@@ -146,9 +146,14 @@ func (s *SQLiteDatabase) saveInternalTopic(config topics.InternalTopicConfig) er
 		return fmt.Errorf("failed to marshal input names: %w", err)
 	}
 
+	parametersJSON, err := json.Marshal(config.Parameters)
+	if err != nil {
+		return fmt.Errorf("failed to marshal parameters: %w", err)
+	}
+
 	query := `
-		INSERT OR REPLACE INTO topics (name, type, inputs, input_names, strategy_id, emit_to_mqtt, noop_unchanged, last_value, last_updated, config, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT OR REPLACE INTO topics (name, type, inputs, input_names, strategy_id, parameters, emit_to_mqtt, noop_unchanged, last_value, last_updated, config, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err = s.db.Exec(query,
@@ -157,6 +162,7 @@ func (s *SQLiteDatabase) saveInternalTopic(config topics.InternalTopicConfig) er
 		string(inputsJSON),
 		string(inputNamesJSON),
 		config.StrategyID,
+		string(parametersJSON),
 		config.EmitToMQTT,
 		config.NoOpUnchanged,
 		string(valueJSON),
@@ -198,7 +204,7 @@ func (s *SQLiteDatabase) saveSystemTopic(config topics.SystemTopicConfig) error 
 
 func (s *SQLiteDatabase) LoadTopic(name string) (interface{}, error) {
 	query := `
-		SELECT name, type, inputs, input_names, strategy_id, emit_to_mqtt, noop_unchanged,
+		SELECT name, type, inputs, input_names, strategy_id, parameters, emit_to_mqtt, noop_unchanged,
 		       last_value, last_updated, config, created_at
 		FROM topics WHERE name = ?
 	`
@@ -206,13 +212,13 @@ func (s *SQLiteDatabase) LoadTopic(name string) (interface{}, error) {
 	row := s.db.QueryRow(query, name)
 
 	var topicName, topicType string
-	var inputs, inputNames, strategyID sql.NullString
+	var inputs, inputNames, strategyID, parameters sql.NullString
 	var emitToMQTT, noopUnchanged sql.NullBool
 	var lastValue sql.NullString
 	var config string
 	var lastUpdated, createdAt time.Time
 
-	err := row.Scan(&topicName, &topicType, &inputs, &inputNames, &strategyID,
+	err := row.Scan(&topicName, &topicType, &inputs, &inputNames, &strategyID, &parameters,
 		&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &config, &createdAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -221,13 +227,13 @@ func (s *SQLiteDatabase) LoadTopic(name string) (interface{}, error) {
 		return nil, fmt.Errorf("failed to scan topic: %w", err)
 	}
 
-	return s.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID,
+	return s.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID, parameters,
 		emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config)
 }
 
 func (s *SQLiteDatabase) LoadAllTopics() ([]interface{}, error) {
 	query := `
-		SELECT name, type, inputs, input_names, strategy_id, emit_to_mqtt, noop_unchanged,
+		SELECT name, type, inputs, input_names, strategy_id, parameters, emit_to_mqtt, noop_unchanged,
 		       last_value, last_updated, config, created_at
 		FROM topics ORDER BY name
 	`
@@ -242,19 +248,19 @@ func (s *SQLiteDatabase) LoadAllTopics() ([]interface{}, error) {
 
 	for rows.Next() {
 		var topicName, topicType string
-		var inputs, inputNames, strategyID sql.NullString
+		var inputs, inputNames, strategyID, parameters sql.NullString
 		var emitToMQTT, noopUnchanged sql.NullBool
 		var lastValue sql.NullString
 		var config string
 		var lastUpdated, createdAt time.Time
 
-		err := rows.Scan(&topicName, &topicType, &inputs, &inputNames, &strategyID,
+		err := rows.Scan(&topicName, &topicType, &inputs, &inputNames, &strategyID, &parameters,
 			&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &config, &createdAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan topic row: %w", err)
 		}
 
-		topicConfig, err := s.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID,
+		topicConfig, err := s.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID, parameters,
 			emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config)
 		if err != nil {
 			return nil, err
@@ -266,7 +272,7 @@ func (s *SQLiteDatabase) LoadAllTopics() ([]interface{}, error) {
 	return topics, nil
 }
 
-func (s *SQLiteDatabase) buildTopicConfig(name, topicType string, inputs, inputNames, strategyID sql.NullString,
+func (s *SQLiteDatabase) buildTopicConfig(name, topicType string, inputs, inputNames, strategyID, parameters sql.NullString,
 	emitToMQTT, noopUnchanged sql.NullBool, lastValue sql.NullString, lastUpdated, createdAt time.Time,
 	config string) (interface{}, error) {
 
@@ -310,11 +316,19 @@ func (s *SQLiteDatabase) buildTopicConfig(name, topicType string, inputs, inputN
 			}
 		}
 
+		var parsedParameters map[string]interface{}
+		if parameters.Valid && parameters.String != "" {
+			if err := json.Unmarshal([]byte(parameters.String), &parsedParameters); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal parameters: %w", err)
+			}
+		}
+
 		return topics.InternalTopicConfig{
 			BaseTopicConfig: baseConfig,
 			Inputs:          parsedInputs,
 			InputNames:      parsedInputNames,
 			StrategyID:      strategyID.String,
+			Parameters:      parsedParameters,
 			EmitToMQTT:      emitToMQTT.Bool,
 			NoOpUnchanged:   noopUnchanged.Bool,
 		}, nil
@@ -347,13 +361,14 @@ func (s *SQLiteDatabase) SaveStrategy(strategy *strategy.Strategy) error {
 	}
 
 	query := `
-		INSERT OR REPLACE INTO strategies (id, name, code, language, parameters, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT OR REPLACE INTO strategies (id, name, description, code, language, parameters, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err = s.db.Exec(query,
 		strategy.ID,
 		strategy.Name,
+		strategy.Description,
 		strategy.Code,
 		strategy.Language,
 		string(parametersJSON),
@@ -366,7 +381,7 @@ func (s *SQLiteDatabase) SaveStrategy(strategy *strategy.Strategy) error {
 
 func (s *SQLiteDatabase) LoadStrategy(id string) (*strategy.Strategy, error) {
 	query := `
-		SELECT id, name, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
+		SELECT id, name, description, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
 		FROM strategies WHERE id = ?
 	`
 
@@ -377,7 +392,7 @@ func (s *SQLiteDatabase) LoadStrategy(id string) (*strategy.Strategy, error) {
 	var maxInputs sql.NullInt64
 	var defaultInputNamesJSON sql.NullString
 
-	err := row.Scan(&strat.ID, &strat.Name, &strat.Code, &strat.Language,
+	err := row.Scan(&strat.ID, &strat.Name, &strat.Description, &strat.Code, &strat.Language,
 		&parametersJSON, &maxInputs, &defaultInputNamesJSON, &strat.CreatedAt, &strat.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -407,7 +422,7 @@ func (s *SQLiteDatabase) LoadStrategy(id string) (*strategy.Strategy, error) {
 
 func (s *SQLiteDatabase) LoadAllStrategies() ([]*strategy.Strategy, error) {
 	query := `
-		SELECT id, name, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
+		SELECT id, name, description, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
 		FROM strategies ORDER BY name
 	`
 
@@ -425,7 +440,7 @@ func (s *SQLiteDatabase) LoadAllStrategies() ([]*strategy.Strategy, error) {
 		var maxInputs sql.NullInt64
 		var defaultInputNamesJSON sql.NullString
 
-		err := rows.Scan(&strat.ID, &strat.Name, &strat.Code, &strat.Language,
+		err := rows.Scan(&strat.ID, &strat.Name, &strat.Description, &strat.Code, &strat.Language,
 			&parametersJSON, &maxInputs, &defaultInputNamesJSON, &strat.CreatedAt, &strat.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan strategy row: %w", err)

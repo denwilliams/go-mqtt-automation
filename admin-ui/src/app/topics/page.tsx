@@ -49,6 +49,7 @@ interface Topic {
   inputs?: string[];
   input_names?: { [key: string]: string };
   strategy_id?: string;
+  parameters?: { [key: string]: unknown };
   emit_to_mqtt?: boolean;
 }
 
@@ -73,6 +74,8 @@ export default function TopicsPage() {
     input_names: {} as { [key: string]: string },
     input_names_text: "",
     strategy_id: "__none__",
+    parameters: {} as { [key: string]: unknown },
+    parameters_text: "{}",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -122,6 +125,8 @@ export default function TopicsPage() {
       input_names: {},
       input_names_text: "",
       strategy_id: "__none__",
+      parameters: {},
+      parameters_text: "{}",
     });
     setIsDialogOpen(true);
   };
@@ -138,6 +143,8 @@ export default function TopicsPage() {
         .map(([topic, name]) => `${topic}=${name}`)
         .join("\n"),
       strategy_id: topic.strategy_id || "__none__",
+      parameters: topic.parameters || {},
+      parameters_text: JSON.stringify(topic.parameters || {}, null, 2),
     });
     setIsDialogOpen(true);
   };
@@ -158,6 +165,15 @@ export default function TopicsPage() {
     const inputTopics = formData.inputs.filter((input) => input.trim() !== "");
     if (inputTopics.length === 0) {
       alert("At least one input topic is required");
+      return;
+    }
+
+    // Parse parameters JSON
+    let parsedParameters = {};
+    try {
+      parsedParameters = JSON.parse(formData.parameters_text);
+    } catch {
+      alert("Invalid JSON in parameters field");
       return;
     }
 
@@ -188,6 +204,10 @@ export default function TopicsPage() {
             formData.strategy_id !== "" &&
             formData.strategy_id !== "__none__"
               ? formData.strategy_id
+              : undefined,
+          parameters:
+            Object.keys(parsedParameters).length > 0
+              ? parsedParameters
               : undefined,
         }),
       });
@@ -717,6 +737,29 @@ export default function TopicsPage() {
               <p className="text-xs text-muted-foreground">
                 Optionally assign friendly names to input topics using the
                 format: topic=name
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">
+                Parameters (JSON, Optional)
+              </label>
+              <Textarea
+                value={formData.parameters_text}
+                onChange={(e) =>
+                  setFormData({ ...formData, parameters_text: e.target.value })
+                }
+                placeholder='{"key": "value"}'
+                disabled={
+                  editingTopic?.type === "system" ||
+                  editingTopic?.type === "external"
+                }
+                className="min-h-[120px] font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Strategy-specific parameters as JSON. These override the
+                strategy&apos;s default parameters. Example: {"{"}
+                &quot;min&quot;: 20, &quot;max&quot;: 80{"}"}
               </p>
             </div>
           </div>

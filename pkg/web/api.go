@@ -75,14 +75,15 @@ type TopicListResponse struct {
 }
 
 type TopicSummary struct {
-	Name        string            `json:"name"`
-	Type        string            `json:"type"`
-	LastValue   interface{}       `json:"last_value"`
-	LastUpdated time.Time         `json:"last_updated"`
-	Inputs      []string          `json:"inputs,omitempty"`
-	InputNames  map[string]string `json:"input_names,omitempty"`
-	StrategyID  string            `json:"strategy_id,omitempty"`
-	EmitToMQTT  bool              `json:"emit_to_mqtt,omitempty"`
+	Name        string                 `json:"name"`
+	Type        string                 `json:"type"`
+	LastValue   interface{}            `json:"last_value"`
+	LastUpdated time.Time              `json:"last_updated"`
+	Inputs      []string               `json:"inputs,omitempty"`
+	InputNames  map[string]string      `json:"input_names,omitempty"`
+	StrategyID  string                 `json:"strategy_id,omitempty"`
+	Parameters  map[string]interface{} `json:"parameters,omitempty"`
+	EmitToMQTT  bool                   `json:"emit_to_mqtt,omitempty"`
 }
 
 type TopicDetail struct {
@@ -94,19 +95,21 @@ type TopicDetail struct {
 	Inputs        []string               `json:"inputs,omitempty"`
 	InputNames    map[string]string      `json:"input_names,omitempty"`
 	StrategyID    string                 `json:"strategy_id,omitempty"`
+	Parameters    map[string]interface{} `json:"parameters,omitempty"`
 	EmitToMQTT    bool                   `json:"emit_to_mqtt,omitempty"`
 	NoOpUnchanged bool                   `json:"noop_unchanged,omitempty"`
 	Config        map[string]interface{} `json:"config,omitempty"`
 }
 
 type TopicCreateRequest struct {
-	Name          string            `json:"name"`
-	Type          string            `json:"type"`
-	Inputs        []string          `json:"inputs,omitempty"`
-	InputNames    map[string]string `json:"input_names,omitempty"`
-	StrategyID    string            `json:"strategy_id,omitempty"`
-	EmitToMQTT    bool              `json:"emit_to_mqtt,omitempty"`
-	NoOpUnchanged bool              `json:"noop_unchanged,omitempty"`
+	Name          string                 `json:"name"`
+	Type          string                 `json:"type"`
+	Inputs        []string               `json:"inputs,omitempty"`
+	InputNames    map[string]string      `json:"input_names,omitempty"`
+	StrategyID    string                 `json:"strategy_id,omitempty"`
+	Parameters    map[string]interface{} `json:"parameters,omitempty"`
+	EmitToMQTT    bool                   `json:"emit_to_mqtt,omitempty"`
+	NoOpUnchanged bool                   `json:"noop_unchanged,omitempty"`
 }
 
 // Strategy structures
@@ -328,6 +331,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 				Inputs:      cfg.Inputs,
 				InputNames:  cfg.InputNames,
 				StrategyID:  cfg.StrategyID,
+				Parameters:  cfg.Parameters,
 				EmitToMQTT:  cfg.EmitToMQTT,
 			}
 		case topics.SystemTopicConfig:
@@ -360,6 +364,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 			Inputs:      childConfig.Inputs,
 			InputNames:  childConfig.InputNames,
 			StrategyID:  childConfig.StrategyID,
+			Parameters:  childConfig.Parameters,
 			EmitToMQTT:  childConfig.EmitToMQTT,
 		}
 
@@ -450,6 +455,7 @@ func (s *Server) handleAPITopicsCreate(w http.ResponseWriter, r *http.Request) {
 		Inputs:        req.Inputs,
 		InputNames:    req.InputNames,
 		StrategyID:    req.StrategyID,
+		Parameters:    req.Parameters,
 		EmitToMQTT:    req.EmitToMQTT,
 		NoOpUnchanged: req.NoOpUnchanged,
 	}
@@ -462,7 +468,7 @@ func (s *Server) handleAPITopicsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create in-memory version
-	_, err := s.topicManager.AddInternalTopic(req.Name, req.Inputs, req.InputNames, req.StrategyID, req.EmitToMQTT, req.NoOpUnchanged)
+	_, err := s.topicManager.AddInternalTopic(req.Name, req.Inputs, req.InputNames, req.StrategyID, req.Parameters, req.EmitToMQTT, req.NoOpUnchanged)
 	if err != nil {
 		s.logger.Printf("Failed to create topic in memory: %v", err)
 		// Try to reload from database instead
@@ -528,6 +534,7 @@ func (s *Server) handleAPITopicGet(w http.ResponseWriter, r *http.Request, topic
 		detail.Inputs = cfg.Inputs
 		detail.InputNames = cfg.InputNames
 		detail.StrategyID = cfg.StrategyID
+		detail.Parameters = cfg.Parameters
 		detail.EmitToMQTT = cfg.EmitToMQTT
 		detail.NoOpUnchanged = cfg.NoOpUnchanged
 		detail.Config = cfg.Config

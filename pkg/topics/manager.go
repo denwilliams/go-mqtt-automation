@@ -13,7 +13,7 @@ import (
 )
 
 type StrategyExecutor interface {
-	ExecuteStrategy(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}) ([]strategy.EmitEvent, error)
+	ExecuteStrategy(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) ([]strategy.EmitEvent, error)
 	GetStrategy(strategyID string) (*strategy.Strategy, error)
 }
 
@@ -81,7 +81,7 @@ func (m *Manager) AddExternalTopic(name string) *ExternalTopic {
 	return topic
 }
 
-func (m *Manager) AddInternalTopic(name string, inputs []string, inputNames map[string]string, strategyID string, emitToMQTT bool, noOpUnchanged bool) (*InternalTopic, error) {
+func (m *Manager) AddInternalTopic(name string, inputs []string, inputNames map[string]string, strategyID string, parameters map[string]interface{}, emitToMQTT bool, noOpUnchanged bool) (*InternalTopic, error) {
 	m.mutex.Lock()
 	defer func() {
 		m.mutex.Unlock()
@@ -109,6 +109,11 @@ func (m *Manager) AddInternalTopic(name string, inputs []string, inputNames map[
 		for inputTopic, inputName := range inputNames {
 			topic.SetInputName(inputTopic, inputName)
 		}
+	}
+
+	// Set parameters if provided
+	if parameters != nil {
+		topic.SetParameters(parameters)
 	}
 
 	// Apply MQTT emission and noop settings
@@ -268,12 +273,12 @@ func (m *Manager) NotifyTopicUpdate(event TopicEvent) error {
 	return nil
 }
 
-func (m *Manager) ExecuteStrategy(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}) ([]strategy.EmitEvent, error) {
+func (m *Manager) ExecuteStrategy(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) ([]strategy.EmitEvent, error) {
 	if m.strategyExecutor == nil {
 		return nil, fmt.Errorf("strategy executor not configured")
 	}
 
-	return m.strategyExecutor.ExecuteStrategy(strategyID, inputs, inputNames, triggerTopic, lastOutput)
+	return m.strategyExecutor.ExecuteStrategy(strategyID, inputs, inputNames, triggerTopic, lastOutput, topicParameters)
 }
 
 func (m *Manager) SaveTopicState(topicName string, value interface{}) error {

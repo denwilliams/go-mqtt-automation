@@ -141,13 +141,18 @@ func (p *PostgreSQLDatabase) saveInternalTopic(config topics.InternalTopicConfig
 		return fmt.Errorf("failed to marshal input names: %w", err)
 	}
 
+	parametersJSON, err := json.Marshal(config.Parameters)
+	if err != nil {
+		return fmt.Errorf("failed to marshal parameters: %w", err)
+	}
+
 	query := `
 		UPDATE topics
-		SET inputs = $1, input_names = $2, strategy_id = $3, emit_to_mqtt = $4, noop_unchanged = $5
-		WHERE name = $6
+		SET inputs = $1, input_names = $2, strategy_id = $3, parameters = $4, emit_to_mqtt = $5, noop_unchanged = $6
+		WHERE name = $7
 	`
 
-	_, err = p.db.Exec(query, string(inputsJSON), string(inputNamesJSON), config.StrategyID, config.EmitToMQTT, config.NoOpUnchanged, config.Name)
+	_, err = p.db.Exec(query, string(inputsJSON), string(inputNamesJSON), config.StrategyID, string(parametersJSON), config.EmitToMQTT, config.NoOpUnchanged, config.Name)
 	return err
 }
 
@@ -157,21 +162,21 @@ func (p *PostgreSQLDatabase) saveSystemTopic(config topics.SystemTopicConfig) er
 
 func (p *PostgreSQLDatabase) LoadTopic(name string) (interface{}, error) {
 	query := `
-		SELECT name, type, inputs, input_names, strategy_id, emit_to_mqtt, noop_unchanged,
+		SELECT name, type, inputs, input_names, strategy_id, parameters, emit_to_mqtt, noop_unchanged,
 		       last_value, last_updated, created_at, config
 		FROM topics
 		WHERE name = $1
 	`
 
 	var topicName, topicType string
-	var inputs, inputNames, strategyID sql.NullString
+	var inputs, inputNames, strategyID, parameters sql.NullString
 	var emitToMQTT, noopUnchanged sql.NullBool
 	var lastValue sql.NullString
 	var lastUpdated, createdAt time.Time
 	var config string
 
 	err := p.db.QueryRow(query, name).Scan(
-		&topicName, &topicType, &inputs, &inputNames, &strategyID,
+		&topicName, &topicType, &inputs, &inputNames, &strategyID, &parameters,
 		&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &createdAt, &config,
 	)
 	if err != nil {
@@ -181,13 +186,13 @@ func (p *PostgreSQLDatabase) LoadTopic(name string) (interface{}, error) {
 		return nil, fmt.Errorf("failed to load topic: %w", err)
 	}
 
-	return p.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID,
+	return p.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID, parameters,
 		emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config)
 }
 
 func (p *PostgreSQLDatabase) LoadAllTopics() ([]interface{}, error) {
 	query := `
-		SELECT name, type, inputs, input_names, strategy_id, emit_to_mqtt, noop_unchanged,
+		SELECT name, type, inputs, input_names, strategy_id, parameters, emit_to_mqtt, noop_unchanged,
 		       last_value, last_updated, created_at, config
 		FROM topics
 		ORDER BY name
@@ -202,21 +207,21 @@ func (p *PostgreSQLDatabase) LoadAllTopics() ([]interface{}, error) {
 	var topics []interface{}
 	for rows.Next() {
 		var topicName, topicType string
-		var inputs, inputNames, strategyID sql.NullString
+		var inputs, inputNames, strategyID, parameters sql.NullString
 		var emitToMQTT, noopUnchanged sql.NullBool
 		var lastValue sql.NullString
 		var lastUpdated, createdAt time.Time
 		var config string
 
 		err := rows.Scan(
-			&topicName, &topicType, &inputs, &inputNames, &strategyID,
+			&topicName, &topicType, &inputs, &inputNames, &strategyID, &parameters,
 			&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &createdAt, &config,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan topic: %w", err)
 		}
 
-		topicConfig, err := p.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID,
+		topicConfig, err := p.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID, parameters,
 			emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build topic config for %s: %w", topicName, err)
@@ -228,7 +233,7 @@ func (p *PostgreSQLDatabase) LoadAllTopics() ([]interface{}, error) {
 	return topics, rows.Err()
 }
 
-func (p *PostgreSQLDatabase) buildTopicConfig(name, topicType string, inputs, inputNames, strategyID sql.NullString,
+func (p *PostgreSQLDatabase) buildTopicConfig(name, topicType string, inputs, inputNames, strategyID, parameters sql.NullString,
 	emitToMQTT, noopUnchanged sql.NullBool, lastValue sql.NullString, lastUpdated, createdAt time.Time,
 	config string) (interface{}, error) {
 
@@ -271,11 +276,19 @@ func (p *PostgreSQLDatabase) buildTopicConfig(name, topicType string, inputs, in
 			}
 		}
 
+		var parsedParameters map[string]interface{}
+		if parameters.Valid && parameters.String != "" {
+			if err := json.Unmarshal([]byte(parameters.String), &parsedParameters); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal parameters: %w", err)
+			}
+		}
+
 		return topics.InternalTopicConfig{
 			BaseTopicConfig: baseConfig,
 			Inputs:          parsedInputs,
 			InputNames:      parsedInputNames,
 			StrategyID:      strategyID.String,
+			Parameters:      parsedParameters,
 			EmitToMQTT:      emitToMQTT.Bool,
 			NoOpUnchanged:   noopUnchanged.Bool,
 		}, nil
@@ -307,25 +320,26 @@ func (p *PostgreSQLDatabase) SaveStrategy(strategy *strategy.Strategy) error {
 	}
 
 	query := `
-		INSERT INTO strategies (id, name, code, language, parameters, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		ON CONFLICT (id) 
-		DO UPDATE SET 
+		INSERT INTO strategies (id, name, description, code, language, parameters, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (id)
+		DO UPDATE SET
 			name = EXCLUDED.name,
+			description = EXCLUDED.description,
 			code = EXCLUDED.code,
 			language = EXCLUDED.language,
 			parameters = EXCLUDED.parameters,
 			updated_at = EXCLUDED.updated_at
 	`
 
-	_, err = p.db.Exec(query, strategy.ID, strategy.Name, strategy.Code, strategy.Language,
+	_, err = p.db.Exec(query, strategy.ID, strategy.Name, strategy.Description, strategy.Code, strategy.Language,
 		string(parametersJSON), strategy.CreatedAt, strategy.UpdatedAt)
 	return err
 }
 
 func (p *PostgreSQLDatabase) LoadStrategy(id string) (*strategy.Strategy, error) {
 	query := `
-		SELECT id, name, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
+		SELECT id, name, description, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
 		FROM strategies
 		WHERE id = $1
 	`
@@ -336,7 +350,7 @@ func (p *PostgreSQLDatabase) LoadStrategy(id string) (*strategy.Strategy, error)
 	var defaultInputNamesJSON sql.NullString
 
 	err := p.db.QueryRow(query, id).Scan(
-		&strat.ID, &strat.Name, &strat.Code, &strat.Language,
+		&strat.ID, &strat.Name, &strat.Description, &strat.Code, &strat.Language,
 		&parametersJSON, &maxInputs, &defaultInputNamesJSON, &strat.CreatedAt, &strat.UpdatedAt,
 	)
 	if err != nil {
@@ -367,7 +381,7 @@ func (p *PostgreSQLDatabase) LoadStrategy(id string) (*strategy.Strategy, error)
 
 func (p *PostgreSQLDatabase) LoadAllStrategies() ([]*strategy.Strategy, error) {
 	query := `
-		SELECT id, name, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
+		SELECT id, name, description, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
 		FROM strategies
 		ORDER BY name
 	`
@@ -386,7 +400,7 @@ func (p *PostgreSQLDatabase) LoadAllStrategies() ([]*strategy.Strategy, error) {
 		var defaultInputNamesJSON sql.NullString
 
 		err := rows.Scan(
-			&strat.ID, &strat.Name, &strat.Code, &strat.Language,
+			&strat.ID, &strat.Name, &strat.Description, &strat.Code, &strat.Language,
 			&parametersJSON, &maxInputs, &defaultInputNamesJSON, &strat.CreatedAt, &strat.UpdatedAt,
 		)
 		if err != nil {
