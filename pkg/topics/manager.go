@@ -105,10 +105,8 @@ func (m *Manager) AddInternalTopic(name string, inputs []string, inputNames map[
 	topic.SetManager(m)
 
 	// Set input names if provided
-	if inputNames != nil {
-		for inputTopic, inputName := range inputNames {
-			topic.SetInputName(inputTopic, inputName)
-		}
+	for inputTopic, inputName := range inputNames {
+		topic.SetInputName(inputTopic, inputName)
 	}
 
 	// Set parameters if provided
