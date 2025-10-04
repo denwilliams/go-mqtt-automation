@@ -408,7 +408,9 @@ export default function StrategiesPage() {
                           className="max-w-md truncate"
                           title={strategy.description}
                         >
-                          {strategy.description || <span className="italic">No description</span>}
+                          {strategy.description || (
+                            <span className="italic">No description</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -496,7 +498,9 @@ export default function StrategiesPage() {
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Description (Markdown supported)</label>
+                <label className="text-sm font-medium">
+                  Description (Markdown supported)
+                </label>
                 <Textarea
                   value={formData.description}
                   onChange={(e) =>
@@ -506,7 +510,8 @@ export default function StrategiesPage() {
                   className="min-h-[80px]"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Explain how the strategy works and what topics it emits. Markdown formatting is supported.
+                  Explain how the strategy works and what topics it emits.
+                  Markdown formatting is supported.
                 </p>
               </div>
 
@@ -561,8 +566,8 @@ export default function StrategiesPage() {
                   placeholder="Comma-separated list of default input names"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Enter input names separated by commas (e.g., &quot;Input 1, Input
-                  2, Input 3&quot;)
+                  Enter input names separated by commas (e.g., &quot;Input 1,
+                  Input 2, Input 3&quot;)
                 </p>
               </div>
 

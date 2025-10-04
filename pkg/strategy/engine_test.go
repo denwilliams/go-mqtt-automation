@@ -373,7 +373,7 @@ func TestExecuteStrategy(t *testing.T) {
 		"topic2": true,
 	}
 
-	emittedEvents, err := engine.ExecuteStrategy("test-strategy", inputs, nil, "topic1", nil)
+	emittedEvents, err := engine.ExecuteStrategy("test-strategy", inputs, nil, "topic1", nil, nil)
 	if err != nil {
 		t.Fatalf("ExecuteStrategy() failed: %v", err)
 	}
@@ -401,7 +401,7 @@ func TestExecuteStrategy(t *testing.T) {
 	}
 
 	// Test with non-existent strategy
-	_, err = engine.ExecuteStrategy("nonexistent", inputs, nil, "topic1", nil)
+	_, err = engine.ExecuteStrategy("nonexistent", inputs, nil, "topic1", nil, nil)
 	if err == nil {
 		t.Error("expected error for non-existent strategy")
 	}
@@ -433,7 +433,7 @@ func TestExecuteStrategyWithError(t *testing.T) {
 		t.Fatalf("Failed to add strategy: %v", err)
 	}
 
-	_, err = engine.ExecuteStrategy("error-strategy", map[string]interface{}{}, nil, "topic1", nil)
+	_, err = engine.ExecuteStrategy("error-strategy", map[string]interface{}{}, nil, "topic1", nil, nil)
 	if err == nil {
 		t.Error("expected error from strategy execution")
 	}
@@ -674,7 +674,7 @@ func TestExecuteStrategy_WithMainReturnValues(t *testing.T) {
 				t.Fatalf("AddStrategy() failed: %v", err)
 			}
 
-			events, err := engine.ExecuteStrategy("test-main-return", map[string]interface{}{}, nil, "test", nil)
+			events, err := engine.ExecuteStrategy("test-main-return", map[string]interface{}{}, nil, "test", nil, nil)
 			if err != nil {
 				t.Fatalf("ExecuteStrategy() failed: %v", err)
 			}
@@ -741,7 +741,7 @@ func TestConcurrentAccess(t *testing.T) {
 	go func() {
 		inputs := map[string]interface{}{"test": 1}
 		for i := 0; i < 50; i++ {
-			engine.ExecuteStrategy("concurrent-test", inputs, nil, "test", nil)
+			engine.ExecuteStrategy("concurrent-test", inputs, nil, "test", nil, nil)
 		}
 		done <- true
 	}()

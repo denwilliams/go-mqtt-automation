@@ -298,8 +298,8 @@ func (s *Server) handleAPIStrategyTest(w http.ResponseWriter, r *http.Request, s
 	// Override parameters if provided in request (for testing)
 	_ = strat.Parameters // Using the strategy's default parameters
 
-	// Execute strategy
-	events, err := s.strategyEngine.ExecuteStrategy(strategyID, req.Inputs, nil, "test", nil)
+	// Execute strategy (use request parameters if provided, otherwise use strategy defaults)
+	events, err := s.strategyEngine.ExecuteStrategy(strategyID, req.Inputs, nil, "test", nil, req.Parameters)
 
 	response := StrategyTestResponse{
 		EmittedEvents: events,

@@ -17,7 +17,7 @@ func TestChainedTopicDataFlow(t *testing.T) {
 
 	// Mock strategy executor that logs executions and returns predictable results
 	mockExec := &mockStrategyExecutor{
-		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+		executeFunc: func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error) {
 			executionLog = append(executionLog, fmt.Sprintf("%s:%s", strategyID, triggerTopic))
 
 			switch strategyID {
@@ -67,19 +67,19 @@ func TestChainedTopicDataFlow(t *testing.T) {
 	sensorTopic := manager.AddExternalTopic("sensor/temperature")
 
 	// 2. First internal topic (doubles the sensor value)
-	doubledTopic, err := manager.AddInternalTopic("processed/doubled", []string{"sensor/temperature"}, nil, "multiply-by-2", false, false)
+	doubledTopic, err := manager.AddInternalTopic("processed/doubled", []string{"sensor/temperature"}, nil, "multiply-by-2", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add doubled topic: %v", err)
 	}
 
 	// 3. Second internal topic (adds 10 to doubled value)
-	adjustedTopic, err := manager.AddInternalTopic("processed/adjusted", []string{"processed/doubled"}, nil, "add-10", false, false)
+	adjustedTopic, err := manager.AddInternalTopic("processed/adjusted", []string{"processed/doubled"}, nil, "add-10", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add adjusted topic: %v", err)
 	}
 
 	// 4. Final internal topic (formats as string)
-	finalTopic, err := manager.AddInternalTopic("output/formatted", []string{"processed/adjusted"}, nil, "format-string", false, false)
+	finalTopic, err := manager.AddInternalTopic("output/formatted", []string{"processed/adjusted"}, nil, "format-string", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add final topic: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestBranchingTopicChains(t *testing.T) {
 	resultValues := make(map[string]interface{})
 
 	mockExec := &mockStrategyExecutor{
-		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+		executeFunc: func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error) {
 			executionLog = append(executionLog, fmt.Sprintf("%s:%s", strategyID, triggerTopic))
 
 			switch strategyID {
@@ -198,19 +198,19 @@ func TestBranchingTopicChains(t *testing.T) {
 	sensorTopic := manager.AddExternalTopic("sensor/room-temp")
 
 	// Branch 1: Temperature conversion
-	fahrenheitTopic, err := manager.AddInternalTopic("converted/fahrenheit", []string{"sensor/room-temp"}, nil, "celsius-to-fahrenheit", false, false)
+	fahrenheitTopic, err := manager.AddInternalTopic("converted/fahrenheit", []string{"sensor/room-temp"}, nil, "celsius-to-fahrenheit", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add fahrenheit topic: %v", err)
 	}
 
 	// Branch 2: Status determination
-	statusTopic, err := manager.AddInternalTopic("status/temperature", []string{"sensor/room-temp"}, nil, "temperature-status", false, false)
+	statusTopic, err := manager.AddInternalTopic("status/temperature", []string{"sensor/room-temp"}, nil, "temperature-status", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add status topic: %v", err)
 	}
 
 	// Branch 3: Alert checking
-	alertTopic, err := manager.AddInternalTopic("alerts/temperature", []string{"sensor/room-temp"}, nil, "alert-check", false, false)
+	alertTopic, err := manager.AddInternalTopic("alerts/temperature", []string{"sensor/room-temp"}, nil, "alert-check", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add alert topic: %v", err)
 	}
@@ -283,7 +283,7 @@ func TestConvergentTopicChains(t *testing.T) {
 	resultValues := make(map[string]interface{})
 
 	mockExec := &mockStrategyExecutor{
-		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+		executeFunc: func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error) {
 			executionLog = append(executionLog, fmt.Sprintf("%s:%s", strategyID, triggerTopic))
 
 			switch strategyID {
@@ -337,13 +337,13 @@ func TestConvergentTopicChains(t *testing.T) {
 	// Convergent topic that averages all temperatures
 	avgTopic, err := manager.AddInternalTopic("calculated/average-temp",
 		[]string{"sensors/living-room/temp", "sensors/kitchen/temp", "sensors/bedroom/temp"},
-		nil, "average-temperature", false, false)
+		nil, "average-temperature", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add average topic: %v", err)
 	}
 
 	// Final topic that controls HVAC based on average
-	hvacTopic, err := manager.AddInternalTopic("control/hvac", []string{"calculated/average-temp"}, nil, "hvac-control", false, false)
+	hvacTopic, err := manager.AddInternalTopic("control/hvac", []string{"calculated/average-temp"}, nil, "hvac-control", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add HVAC topic: %v", err)
 	}
@@ -426,7 +426,7 @@ func TestComplexChainWithErrors(t *testing.T) {
 	errorLog := make([]string, 0)
 
 	mockExec := &mockStrategyExecutor{
-		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+		executeFunc: func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error) {
 			executionLog = append(executionLog, fmt.Sprintf("%s:%s", strategyID, triggerTopic))
 
 			switch strategyID {
@@ -466,12 +466,12 @@ func TestComplexChainWithErrors(t *testing.T) {
 	// Set up validation chain
 	sensorTopic := manager.AddExternalTopic("sensor/raw-temp")
 
-	validatedTopic, err := manager.AddInternalTopic("validated/temp", []string{"sensor/raw-temp"}, nil, "validate-sensor", false, false)
+	validatedTopic, err := manager.AddInternalTopic("validated/temp", []string{"sensor/raw-temp"}, nil, "validate-sensor", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add validated topic: %v", err)
 	}
 
-	safetyTopic, err := manager.AddInternalTopic("safety/temp-check", []string{"validated/temp"}, nil, "safety-check", false, false)
+	safetyTopic, err := manager.AddInternalTopic("safety/temp-check", []string{"validated/temp"}, nil, "safety-check", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add safety topic: %v", err)
 	}

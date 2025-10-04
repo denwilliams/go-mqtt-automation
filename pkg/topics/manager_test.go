@@ -12,12 +12,12 @@ import (
 
 // Mock strategy executor for testing
 type mockStrategyExecutor struct {
-	executeFunc func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error)
+	executeFunc func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error)
 }
 
-func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) ([]strategy.EmitEvent, error) {
+func (m *mockStrategyExecutor) ExecuteStrategy(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) ([]strategy.EmitEvent, error) {
 	if m.executeFunc != nil {
-		if result, err := m.executeFunc(strategyID, inputs, triggerTopic, lastOutput); err != nil {
+		if result, err := m.executeFunc(strategyID, inputs, inputNames, triggerTopic, lastOutput, topicParameters); err != nil {
 			return nil, err
 		} else {
 			// Handle special test cases that emit derived topics
@@ -163,7 +163,7 @@ func TestAddInternalTopic(t *testing.T) {
 	manager := NewManager(nil)
 
 	inputs := []string{"sensors/temp1", "sensors/temp2"}
-	topic, err := manager.AddInternalTopic("calculated/average", inputs, nil, "test-strategy", false, false)
+	topic, err := manager.AddInternalTopic("calculated/average", inputs, nil, "test-strategy", nil, false, false)
 
 	if err != nil {
 		t.Fatalf("AddInternalTopic() failed: %v", err)
@@ -199,7 +199,7 @@ func TestAddInternalTopic(t *testing.T) {
 	}
 
 	// Try to add duplicate
-	_, err = manager.AddInternalTopic("calculated/average", inputs, nil, "other-strategy", false, false)
+	_, err = manager.AddInternalTopic("calculated/average", inputs, nil, "other-strategy", nil, false, false)
 	if err == nil {
 		t.Error("expected error when adding duplicate internal topic")
 	}
@@ -248,7 +248,7 @@ func TestRemoveTopic(t *testing.T) {
 
 	// Add topics of different types
 	extTopic := manager.AddExternalTopic("sensors/temp")
-	intTopic, _ := manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", false, false)
+	intTopic, _ := manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", nil, false, false)
 	sysTopic := manager.AddSystemTopic("system/test", map[string]interface{}{})
 
 	if len(manager.topics) != 3 {
@@ -320,7 +320,7 @@ func TestListTopics(t *testing.T) {
 
 	// Add topics of different types
 	manager.AddExternalTopic("sensors/temp")
-	manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", false, false)
+	manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", nil, false, false)
 	manager.AddSystemTopic("system/test", map[string]interface{}{})
 
 	topics := manager.ListTopics()
@@ -354,7 +354,7 @@ func TestListTopicsByType(t *testing.T) {
 	// Add multiple topics of different types
 	manager.AddExternalTopic("sensors/temp1")
 	manager.AddExternalTopic("sensors/temp2")
-	manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", false, false)
+	manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", nil, false, false)
 	manager.AddSystemTopic("system/test", map[string]interface{}{})
 
 	// List external topics only
@@ -382,7 +382,7 @@ func TestNotifyTopicUpdate(t *testing.T) {
 	// Set up mock strategy executor
 	executionCalled := false
 	mockExec := &mockStrategyExecutor{
-		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+		executeFunc: func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error) {
 			executionCalled = true
 			if strategyID != "test-strategy" {
 				t.Errorf("strategy ID = %q, want 'test-strategy'", strategyID)
@@ -406,7 +406,7 @@ func TestNotifyTopicUpdate(t *testing.T) {
 	extTopic.Emit(25.5) // Set the value first
 
 	// Add internal topic that depends on the external topic
-	_, err := manager.AddInternalTopic("processed/temp", []string{"sensors/temp"}, nil, "test-strategy", false, false)
+	_, err := manager.AddInternalTopic("processed/temp", []string{"sensors/temp"}, nil, "test-strategy", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to add internal topic: %v", err)
 	}
@@ -441,7 +441,7 @@ func TestGetTopicCount(t *testing.T) {
 	// Add topics
 	manager.AddExternalTopic("sensors/temp1")
 	manager.AddExternalTopic("sensors/temp2")
-	manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", false, false)
+	manager.AddInternalTopic("calc/avg", []string{"input"}, nil, "strategy", nil, false, false)
 	manager.AddSystemTopic("system/test", map[string]interface{}{})
 
 	counts = manager.GetTopicCount()
@@ -485,20 +485,20 @@ func TestExecuteStrategy(t *testing.T) {
 	manager := NewManager(nil)
 
 	// Test without strategy executor
-	_, err := manager.ExecuteStrategy("test", map[string]interface{}{}, "topic", nil)
+	_, err := manager.ExecuteStrategy("test", map[string]interface{}{}, nil, "topic", nil, nil)
 	if err == nil {
 		t.Error("expected error when no strategy executor is set")
 	}
 
 	// Test with strategy executor
 	mockExec := &mockStrategyExecutor{
-		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+		executeFunc: func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error) {
 			return "test result", nil
 		},
 	}
 	manager.SetStrategyExecutor(mockExec)
 
-	emittedEvents, err := manager.ExecuteStrategy("test-strategy", map[string]interface{}{"input": 1}, "trigger", "last")
+	emittedEvents, err := manager.ExecuteStrategy("test-strategy", map[string]interface{}{"input": 1}, nil, "trigger", "last", nil)
 	if err != nil {
 		t.Errorf("ExecuteStrategy() failed: %v", err)
 	}
@@ -605,7 +605,7 @@ func TestInternalTopicTriggering(t *testing.T) {
 
 	// Mock strategy executor that tracks execution
 	mockExec := &mockStrategyExecutor{
-		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+		executeFunc: func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error) {
 			switch strategyID {
 			case "parent-strategy":
 				parentExecuted = true
@@ -625,13 +625,13 @@ func TestInternalTopicTriggering(t *testing.T) {
 	manager.SetStateManager(&mockStateManager{})
 
 	// Create parent topic that emits to subtopic
-	_, err := manager.AddInternalTopic("tesla/mycar", []string{"sensors/battery_level"}, nil, "parent-strategy", false, false)
+	_, err := manager.AddInternalTopic("tesla/mycar", []string{"sensors/battery_level"}, nil, "parent-strategy", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to create parent topic: %v", err)
 	}
 
 	// Create child topic that depends on parent's subtopic
-	_, err = manager.AddInternalTopic("tesla/mycar/battery/alerts", []string{"tesla/mycar/battery"}, nil, "child-strategy", false, false)
+	_, err = manager.AddInternalTopic("tesla/mycar/battery/alerts", []string{"tesla/mycar/battery"}, nil, "child-strategy", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to create child topic: %v", err)
 	}
@@ -676,7 +676,7 @@ func TestDerivedTopicCreationAndTriggering(t *testing.T) {
 	var results = make(map[string]interface{})
 
 	mockExec := &mockStrategyExecutor{
-		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+		executeFunc: func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error) {
 			executionOrder = append(executionOrder, strategyID)
 
 			switch strategyID {
@@ -703,18 +703,18 @@ func TestDerivedTopicCreationAndTriggering(t *testing.T) {
 	manager.SetStateManager(&mockStateManager{})
 
 	// Create main topic that emits to multiple subtopics
-	_, err := manager.AddInternalTopic("vehicle/status", []string{"sensors/raw_data"}, nil, "emitter-strategy", false, false)
+	_, err := manager.AddInternalTopic("vehicle/status", []string{"sensors/raw_data"}, nil, "emitter-strategy", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to create main topic: %v", err)
 	}
 
 	// Create topics that depend on the derived subtopics
-	_, err = manager.AddInternalTopic("vehicle/battery/alerts", []string{"vehicle/status/battery"}, nil, "battery-monitor", false, false)
+	_, err = manager.AddInternalTopic("vehicle/battery/alerts", []string{"vehicle/status/battery"}, nil, "battery-monitor", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to create battery monitor: %v", err)
 	}
 
-	_, err = manager.AddInternalTopic("vehicle/speed/alerts", []string{"vehicle/status/speed"}, nil, "speed-monitor", false, false)
+	_, err = manager.AddInternalTopic("vehicle/speed/alerts", []string{"vehicle/status/speed"}, nil, "speed-monitor", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to create speed monitor: %v", err)
 	}
@@ -777,7 +777,7 @@ func TestDerivedTopicUpdateTriggering(t *testing.T) {
 	var lastInput interface{}
 
 	mockExec := &mockStrategyExecutor{
-		executeFunc: func(strategyID string, inputs map[string]interface{}, triggerTopic string, lastOutput interface{}) (interface{}, error) {
+		executeFunc: func(strategyID string, inputs map[string]interface{}, inputNames map[string]string, triggerTopic string, lastOutput interface{}, topicParameters map[string]interface{}) (interface{}, error) {
 			switch strategyID {
 			case "source-strategy":
 				return fmt.Sprintf("output-%d", executionCount), nil
@@ -794,13 +794,13 @@ func TestDerivedTopicUpdateTriggering(t *testing.T) {
 	manager.SetStateManager(&mockStateManager{})
 
 	// Create source topic that emits to subtopic
-	_, err := manager.AddInternalTopic("source", []string{"trigger"}, nil, "source-strategy", false, false)
+	_, err := manager.AddInternalTopic("source", []string{"trigger"}, nil, "source-strategy", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to create source topic: %v", err)
 	}
 
 	// Create dependent topic
-	_, err = manager.AddInternalTopic("dependent", []string{"source/output"}, nil, "dependent-strategy", false, false)
+	_, err = manager.AddInternalTopic("dependent", []string{"source/output"}, nil, "dependent-strategy", nil, false, false)
 	if err != nil {
 		t.Fatalf("Failed to create dependent topic: %v", err)
 	}
