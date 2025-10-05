@@ -570,6 +570,7 @@ func (s *Server) handleAPITopicUpdate(w http.ResponseWriter, r *http.Request, to
 	config.Inputs = req.Inputs
 	config.InputNames = req.InputNames
 	config.StrategyID = req.StrategyID
+	config.Parameters = req.Parameters
 	config.EmitToMQTT = req.EmitToMQTT
 	config.NoOpUnchanged = req.NoOpUnchanged
 	config.Type = topics.TopicTypeInternal
