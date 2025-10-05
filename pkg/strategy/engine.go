@@ -127,6 +127,11 @@ func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{
 		mergedParameters[k] = v
 	}
 
+	// Ensure lastOutput is always an object (never nil)
+	if lastOutput == nil {
+		lastOutput = map[string]interface{}{}
+	}
+
 	// Create execution context
 	context := ExecutionContext{
 		InputValues:     inputs,
