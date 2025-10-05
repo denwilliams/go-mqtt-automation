@@ -166,18 +166,29 @@ func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{
 		return nil, result.Error
 	}
 
-	// Prepare events to return - start with explicitly emitted events
-	events := make([]EmitEvent, len(result.EmittedEvents))
-	copy(events, result.EmittedEvents)
+	// Prepare events to return
+	// Strategy: For each topic (main or subtopic), keep only the LAST emit
+	// This handles both context.emit(value) and return value
+	eventMap := make(map[string]EmitEvent) // topic path -> last event
 
-	// Add the main result as an event with empty topic (main topic)
-	// Only include non-nil main results to avoid overriding with meaningless values
+	// Process emitted events (from context.emit calls)
+	for _, event := range result.EmittedEvents {
+		// Replace any previous emit to the same topic
+		eventMap[event.Topic] = event
+	}
+
+	// If function returned a value, it overrides any previous main topic emit
 	if result.Result != nil {
-		mainEvent := EmitEvent{
-			Topic: "", // Empty topic means main topic
+		eventMap[""] = EmitEvent{
+			Topic: "",
 			Value: result.Result,
 		}
-		events = append(events, mainEvent)
+	}
+
+	// Convert map to slice
+	events := make([]EmitEvent, 0, len(eventMap))
+	for _, event := range eventMap {
+		events = append(events, event)
 	}
 
 	return events, nil

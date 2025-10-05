@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -768,5 +769,136 @@ func TestConcurrentAccess(t *testing.T) {
 	// Verify engine is still functional
 	if engine.GetStrategyCount() != 1 {
 		t.Error("engine corrupted after concurrent access")
+	}
+}
+
+func TestLastValueWins(t *testing.T) {
+	engine := NewEngine(log.New(os.Stdout, "TEST: ", log.LstdFlags))
+
+	tests := []struct {
+		name             string
+		code             string
+		expectedEvents   int
+		expectedMain     interface{}
+		expectedSubtopic map[string]interface{} // topic path -> expected value
+	}{
+		{
+			name:           "return_only",
+			code:           `function process(context) { return 100; }`,
+			expectedEvents: 1,
+			expectedMain:   int64(100),
+		},
+		{
+			name:           "emit_only",
+			code:           `function process(context) { context.emit(200); }`,
+			expectedEvents: 1,
+			expectedMain:   int64(200),
+		},
+		{
+			name:           "emit_then_return",
+			code:           `function process(context) { context.emit(100); return 200; }`,
+			expectedEvents: 1,
+			expectedMain:   int64(200), // return wins
+		},
+		{
+			name:           "multiple_emits",
+			code:           `function process(context) { context.emit(100); context.emit(200); context.emit(300); }`,
+			expectedEvents: 1,
+			expectedMain:   int64(300), // last emit wins
+		},
+		{
+			name:           "multiple_emits_then_return",
+			code:           `function process(context) { context.emit(100); context.emit(200); return 999; }`,
+			expectedEvents: 1,
+			expectedMain:   int64(999), // return wins over all emits
+		},
+		{
+			name:           "emit_subtopic_and_main",
+			code:           `function process(context) { context.emit('/sub', 'subtopic'); context.emit(100); return 200; }`,
+			expectedEvents: 2,          // subtopic + main
+			expectedMain:   int64(200), // return wins for main
+		},
+		{
+			name:           "multiple_emits_same_subtopic",
+			code:           `function process(context) { context.emit('/sub', 100); context.emit('/sub', 200); context.emit('/sub', 300); return 999; }`,
+			expectedEvents: 2, // subtopic (/sub) + main
+			expectedMain:   int64(999),
+			expectedSubtopic: map[string]interface{}{
+				"/sub": int64(300), // last emit to /sub wins
+			},
+		},
+		{
+			name:           "multiple_emits_different_subtopics",
+			code:           `function process(context) { context.emit('/sub1', 100); context.emit('/sub2', 200); context.emit('/sub1', 300); return 999; }`,
+			expectedEvents: 3, // sub1 + sub2 + main (sub1 last value = 300)
+			expectedMain:   int64(999),
+			expectedSubtopic: map[string]interface{}{
+				"/sub1": int64(300), // last emit to /sub1
+				"/sub2": int64(200),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			strategy := &Strategy{
+				ID:       "test-last-value",
+				Name:     "Test Last Value",
+				Code:     tt.code,
+				Language: "javascript",
+			}
+
+			err := engine.AddStrategy(strategy)
+			if err != nil {
+				t.Fatalf("Failed to add strategy: %v", err)
+			}
+			defer engine.RemoveStrategy("test-last-value")
+
+			events, err := engine.ExecuteStrategy("test-last-value", map[string]interface{}{}, nil, "test", nil, nil)
+			if err != nil {
+				t.Fatalf("ExecuteStrategy failed: %v", err)
+			}
+
+			if len(events) != tt.expectedEvents {
+				t.Errorf("Expected %d events, got %d", tt.expectedEvents, len(events))
+			}
+
+			// Find main topic event (empty topic)
+			var mainEvent *EmitEvent
+			for i := range events {
+				if events[i].Topic == "" {
+					mainEvent = &events[i]
+					break
+				}
+			}
+
+			if mainEvent == nil {
+				t.Fatal("No main topic event found")
+			}
+
+			if !reflect.DeepEqual(mainEvent.Value, tt.expectedMain) {
+				t.Errorf("Expected main value %v (type %T), got %v (type %T)", tt.expectedMain, tt.expectedMain, mainEvent.Value, mainEvent.Value)
+			}
+
+			// Verify subtopic values if expected
+			if tt.expectedSubtopic != nil {
+				for expectedTopic, expectedValue := range tt.expectedSubtopic {
+					found := false
+					for _, event := range events {
+						if event.Topic == expectedTopic {
+							found = true
+							if !reflect.DeepEqual(event.Value, expectedValue) {
+								t.Errorf("Expected subtopic %s value %v (type %T), got %v (type %T)",
+									expectedTopic, expectedValue, expectedValue, event.Value, event.Value)
+							}
+							break
+						}
+					}
+					if !found {
+						t.Errorf("Expected subtopic %s not found in events", expectedTopic)
+					}
+				}
+			}
+		})
 	}
 }

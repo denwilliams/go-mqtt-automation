@@ -58,6 +58,48 @@ function process(context) {
 }
 ```
 
+### Strategy Output: Last Value Wins
+
+Strategies can emit values using `context.emit(value)` or `return value`. If multiple values are emitted to the **same topic** (main or subtopic), **only the last value is kept**.
+
+**Behavior**:
+- Multiple `context.emit(value)` calls → only the last one is used
+- `context.emit(value)` + `return value` → return value wins
+- Multiple emits to the same subtopic → only the last one is kept
+- Different subtopics → each keeps its last emitted value
+
+**Examples**:
+```javascript
+// Only 300 is emitted to the main topic
+function process(context) {
+  context.emit(100);  // Overwritten
+  context.emit(200);  // Overwritten
+  context.emit(300);  // Final value
+}
+
+// Return wins over emit
+function process(context) {
+  context.emit(100);  // Overwritten by return
+  return 200;         // Final value = 200
+}
+
+// Different subtopics each keep their last value
+function process(context) {
+  context.emit('/battery', 75);     // Subtopic /battery = 75
+  context.emit('/status', 'good');  // Subtopic /status = 'good'
+  context.emit(100);                // Main topic - overwritten
+  return 200;                       // Main topic - final value = 200
+}
+
+// Multiple emits to same subtopic - last wins
+function process(context) {
+  context.emit('/battery', 50);     // Overwritten
+  context.emit('/battery', 75);     // Overwritten
+  context.emit('/battery', 90);     // Final /battery value = 90
+  return 200;                       // Main topic = 200
+}
+```
+
 ## Architecture
 
 The system consists of several core components:
