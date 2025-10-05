@@ -54,14 +54,15 @@ func (m *Manager) Close() error {
 
 // Topic State Management
 func (m *Manager) SaveTopicState(topicName string, value interface{}) error {
-	// Save to state table (for legacy compatibility)
+	// Save to state table (for LoadTopicState compatibility)
+	// TODO - consolidate state management approach
 	key := fmt.Sprintf("topic:%s", topicName)
 	if err := m.db.SaveState(key, value); err != nil {
 		m.logger.Printf("Failed to save topic state for %s: %v", topicName, err)
 		return err
 	}
 
-	// Also update the last_value column in topics table
+	// Also update the last_value column in topics table (for API display)
 	if err := m.db.UpdateTopicLastValue(topicName, value); err != nil {
 		m.logger.Printf("Failed to update topic last value for %s: %v", topicName, err)
 		// Don't return error here - state table update succeeded
