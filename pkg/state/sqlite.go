@@ -392,18 +392,18 @@ func (s *SQLiteDatabase) SaveStrategy(strategy *strategy.Strategy) error {
 
 func (s *SQLiteDatabase) LoadStrategy(id string) (*strategy.Strategy, error) {
 	query := `
-		SELECT id, name, description, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
+		SELECT id, name, description, code, language, builtin, parameters, max_inputs, default_input_names, created_at, updated_at
 		FROM strategies WHERE id = ?
 	`
 
 	row := s.db.QueryRow(query, id)
 
 	var strat strategy.Strategy
-	var parametersJSON string
+	var parametersJSON sql.NullString
 	var maxInputs sql.NullInt64
 	var defaultInputNamesJSON sql.NullString
 
-	err := row.Scan(&strat.ID, &strat.Name, &strat.Description, &strat.Code, &strat.Language,
+	err := row.Scan(&strat.ID, &strat.Name, &strat.Description, &strat.Code, &strat.Language, &strat.Builtin,
 		&parametersJSON, &maxInputs, &defaultInputNamesJSON, &strat.CreatedAt, &strat.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -412,8 +412,10 @@ func (s *SQLiteDatabase) LoadStrategy(id string) (*strategy.Strategy, error) {
 		return nil, fmt.Errorf("failed to scan strategy: %w", err)
 	}
 
-	if err := json.Unmarshal([]byte(parametersJSON), &strat.Parameters); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal parameters: %w", err)
+	if parametersJSON.Valid && parametersJSON.String != "" {
+		if err := json.Unmarshal([]byte(parametersJSON.String), &strat.Parameters); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal parameters: %w", err)
+		}
 	}
 
 	// Handle max_inputs
@@ -433,7 +435,7 @@ func (s *SQLiteDatabase) LoadStrategy(id string) (*strategy.Strategy, error) {
 
 func (s *SQLiteDatabase) LoadAllStrategies() ([]*strategy.Strategy, error) {
 	query := `
-		SELECT id, name, description, code, language, parameters, max_inputs, default_input_names, created_at, updated_at
+		SELECT id, name, description, code, language, builtin, parameters, max_inputs, default_input_names, created_at, updated_at
 		FROM strategies ORDER BY name
 	`
 
@@ -447,18 +449,20 @@ func (s *SQLiteDatabase) LoadAllStrategies() ([]*strategy.Strategy, error) {
 
 	for rows.Next() {
 		var strat strategy.Strategy
-		var parametersJSON string
+		var parametersJSON sql.NullString
 		var maxInputs sql.NullInt64
 		var defaultInputNamesJSON sql.NullString
 
-		err := rows.Scan(&strat.ID, &strat.Name, &strat.Description, &strat.Code, &strat.Language,
+		err := rows.Scan(&strat.ID, &strat.Name, &strat.Description, &strat.Code, &strat.Language, &strat.Builtin,
 			&parametersJSON, &maxInputs, &defaultInputNamesJSON, &strat.CreatedAt, &strat.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan strategy row: %w", err)
 		}
 
-		if err := json.Unmarshal([]byte(parametersJSON), &strat.Parameters); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal parameters: %w", err)
+		if parametersJSON.Valid && parametersJSON.String != "" {
+			if err := json.Unmarshal([]byte(parametersJSON.String), &strat.Parameters); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal parameters: %w", err)
+			}
 		}
 
 		// Handle max_inputs

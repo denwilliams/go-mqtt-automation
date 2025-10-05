@@ -45,6 +45,7 @@ interface Strategy {
   description: string;
   code: string;
   language: string;
+  builtin: boolean;
   parameters?: Record<string, unknown>;
   max_inputs: number;
   default_input_names?: string[];
@@ -73,14 +74,16 @@ export default function StrategiesPage() {
   const [parametersText, setParametersText] = useState("{}");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchStrategies = async (language?: string) => {
+  const fetchStrategies = async (typeFilter?: string) => {
     try {
       setLoading(true);
-      const url =
-        language && language !== "all"
-          ? `/api/v1/strategies?language=${language}&limit=100`
-          : "/api/v1/strategies?limit=100";
+      const params = new URLSearchParams({ limit: "100" });
 
+      if (typeFilter && typeFilter !== "all") {
+        params.append("type", typeFilter);
+      }
+
+      const url = `/api/v1/strategies?${params.toString()}`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error("Failed to fetch strategies");
@@ -347,25 +350,19 @@ export default function StrategiesPage() {
               variant={filter === "all" ? "default" : "outline"}
               onClick={() => setFilter("all")}
             >
-              All Strategies ({strategies.length})
+              All Strategies
             </Button>
             <Button
-              variant={filter === "javascript" ? "default" : "outline"}
-              onClick={() => setFilter("javascript")}
+              variant={filter === "builtin" ? "default" : "outline"}
+              onClick={() => setFilter("builtin")}
             >
-              JavaScript
+              Built-in
             </Button>
             <Button
-              variant={filter === "lua" ? "default" : "outline"}
-              onClick={() => setFilter("lua")}
+              variant={filter === "custom" ? "default" : "outline"}
+              onClick={() => setFilter("custom")}
             >
-              Lua
-            </Button>
-            <Button
-              variant={filter === "go-template" ? "default" : "outline"}
-              onClick={() => setFilter("go-template")}
-            >
-              Go Template
+              Custom
             </Button>
           </div>
         </div>
@@ -385,6 +382,7 @@ export default function StrategiesPage() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Language</TableHead>
                     <TableHead>Max Inputs</TableHead>
                     <TableHead>Created At</TableHead>
@@ -414,6 +412,13 @@ export default function StrategiesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        {strategy.builtin ? (
+                          <Badge variant="secondary">Built-in</Badge>
+                        ) : (
+                          <Badge variant="outline">Custom</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <Badge variant="outline">{strategy.language}</Badge>
                       </TableCell>
                       <TableCell className="text-sm">
@@ -433,6 +438,12 @@ export default function StrategiesPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => openEditDialog(strategy)}
+                            disabled={strategy.builtin}
+                            title={
+                              strategy.builtin
+                                ? "Built-in strategies cannot be edited"
+                                : "Edit strategy"
+                            }
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -440,7 +451,13 @@ export default function StrategiesPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleDelete(strategy.id)}
-                            className="text-red-600 hover:text-red-700"
+                            disabled={strategy.builtin}
+                            className="text-red-600 hover:text-red-700 disabled:text-gray-400"
+                            title={
+                              strategy.builtin
+                                ? "Built-in strategies cannot be deleted"
+                                : "Delete strategy"
+                            }
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

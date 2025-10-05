@@ -1,0 +1,10 @@
+-- Add builtin flag to strategies table
+
+ALTER TABLE strategies ADD COLUMN builtin BOOLEAN DEFAULT FALSE;
+
+-- Mark all existing strategies as built-in
+UPDATE strategies SET builtin = TRUE WHERE id IN (
+    'add', 'alias', 'bool', 'inside', 'and', 'not', 'or', 'multiply',
+    'outside', 'pick', 'subtract', 'toggle',
+    'less_than', 'greater_than', 'less_than_or_equal', 'greater_than_or_equal'
+);

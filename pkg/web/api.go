@@ -122,6 +122,7 @@ type StrategySummary struct {
 	ID                string    `json:"id"`
 	Name              string    `json:"name"`
 	Language          string    `json:"language"`
+	Builtin           bool      `json:"builtin"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
 	MaxInputs         int       `json:"max_inputs"`
@@ -133,6 +134,7 @@ type StrategyDetail struct {
 	Name              string                 `json:"name"`
 	Code              string                 `json:"code"`
 	Language          string                 `json:"language"`
+	Builtin           bool                   `json:"builtin"`
 	Parameters        map[string]interface{} `json:"parameters"`
 	MaxInputs         int                    `json:"max_inputs"`
 	DefaultInputNames []string               `json:"default_input_names"`

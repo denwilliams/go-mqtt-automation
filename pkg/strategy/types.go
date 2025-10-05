@@ -10,6 +10,7 @@ type Strategy struct {
 	Description       string                 `json:"description" db:"description"`
 	Code              string                 `json:"code" db:"code"`
 	Language          string                 `json:"language" db:"language"`
+	Builtin           bool                   `json:"builtin" db:"builtin"`
 	Parameters        map[string]interface{} `json:"parameters" db:"parameters"`
 	MaxInputs         int                    `json:"max_inputs" db:"max_inputs"`
 	DefaultInputNames []string               `json:"default_input_names" db:"default_input_names"`

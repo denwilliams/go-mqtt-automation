@@ -25,6 +25,7 @@ func (s *Server) handleAPIV1Strategies(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleAPIStrategiesList(w http.ResponseWriter, r *http.Request) {
 	page, limit := parsePagination(r)
 	languageFilter := r.URL.Query().Get("language")
+	typeFilter := r.URL.Query().Get("type") // "all", "builtin", or "custom"
 
 	// Get all strategies from database (already ordered by name)
 	allStrategies, err := s.stateManager.LoadAllStrategies()
@@ -42,10 +43,19 @@ func (s *Server) handleAPIStrategiesList(w http.ResponseWriter, r *http.Request)
 			continue
 		}
 
+		// Apply type filter if specified
+		if typeFilter == "builtin" && !strat.Builtin {
+			continue
+		}
+		if typeFilter == "custom" && strat.Builtin {
+			continue
+		}
+
 		summary := StrategySummary{
 			ID:                strat.ID,
 			Name:              strat.Name,
 			Language:          strat.Language,
+			Builtin:           strat.Builtin,
 			CreatedAt:         strat.CreatedAt,
 			UpdatedAt:         strat.UpdatedAt,
 			MaxInputs:         strat.MaxInputs,
@@ -191,6 +201,7 @@ func (s *Server) handleAPIStrategyGet(w http.ResponseWriter, r *http.Request, st
 		Name:              strat.Name,
 		Code:              strat.Code,
 		Language:          strat.Language,
+		Builtin:           strat.Builtin,
 		Parameters:        strat.Parameters,
 		MaxInputs:         strat.MaxInputs,
 		DefaultInputNames: strat.DefaultInputNames,
