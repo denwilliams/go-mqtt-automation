@@ -85,12 +85,23 @@ cp config/config.postgres.example.yaml config/config.yaml
 ```
 
 See configuration files for options including:
-- MQTT broker settings  
+- MQTT broker settings
 - Database configuration (SQLite/PostgreSQL)
 - Web server settings
 - System topic intervals
 
 For detailed database setup instructions, see [DATABASE.md](DATABASE.md).
+
+## Monitoring & Metrics
+
+For Prometheus metrics and monitoring, we recommend using an external MQTT-to-Prometheus exporter rather than building metrics into the core system. This keeps the automation system lightweight and focused.
+
+**Recommended approach:**
+- Use [mqtt-prometheus-exporter](https://github.com/torilabs/mqtt-prometheus-exporter) or similar to expose MQTT topics as Prometheus metrics
+- Configure it to subscribe to your automation system's output topics
+- This allows you to monitor any topic without modifying the core system
+
+> **TODO**: Add a detailed guide on setting up MQTT-to-Prometheus monitoring for this system.
 
 ## Development
 
