@@ -12,6 +12,7 @@ type Database interface {
 	LoadTopic(name string) (interface{}, error)
 	LoadAllTopics() ([]interface{}, error)
 	DeleteTopic(name string) error
+	UpdateTopicLastValue(topicName string, value interface{}) error
 
 	// Strategies
 	SaveStrategy(strategy *strategy.Strategy) error

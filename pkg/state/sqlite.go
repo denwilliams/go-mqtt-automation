@@ -353,6 +353,17 @@ func (s *SQLiteDatabase) DeleteTopic(name string) error {
 	return err
 }
 
+func (s *SQLiteDatabase) UpdateTopicLastValue(topicName string, value interface{}) error {
+	valueJSON, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to marshal value: %w", err)
+	}
+
+	query := `UPDATE topics SET last_value = ?, last_updated = ? WHERE name = ?`
+	_, err = s.db.Exec(query, string(valueJSON), time.Now(), topicName)
+	return err
+}
+
 // Strategies
 func (s *SQLiteDatabase) SaveStrategy(strategy *strategy.Strategy) error {
 	parametersJSON, err := json.Marshal(strategy.Parameters)

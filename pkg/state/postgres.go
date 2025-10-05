@@ -312,6 +312,17 @@ func (p *PostgreSQLDatabase) DeleteTopic(name string) error {
 	return err
 }
 
+func (p *PostgreSQLDatabase) UpdateTopicLastValue(topicName string, value interface{}) error {
+	valueJSON, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to marshal value: %w", err)
+	}
+
+	query := `UPDATE topics SET last_value = $1, last_updated = $2 WHERE name = $3`
+	_, err = p.db.Exec(query, string(valueJSON), time.Now(), topicName)
+	return err
+}
+
 // Strategies
 func (p *PostgreSQLDatabase) SaveStrategy(strategy *strategy.Strategy) error {
 	parametersJSON, err := json.Marshal(strategy.Parameters)
