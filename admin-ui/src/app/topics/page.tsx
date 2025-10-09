@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -60,7 +60,7 @@ interface Strategy {
   language: string;
 }
 
-export default function TopicsPage() {
+function TopicsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -807,5 +807,13 @@ export default function TopicsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function TopicsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <TopicsContent />
+    </Suspense>
   );
 }
