@@ -294,6 +294,7 @@ func (s *Server) handleAPIV1Topics(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 	page, limit := parsePagination(r)
 	topicType := r.URL.Query().Get("type")
+	nameFilter := r.URL.Query().Get("name")
 
 	// Get all topics from database (already ordered by name)
 	allTopicConfigs, err := s.stateManager.LoadAllTopicConfigs()
@@ -353,6 +354,11 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Apply name filter if specified (case-insensitive substring match)
+		if nameFilter != "" && !strings.Contains(strings.ToLower(summary.Name), strings.ToLower(nameFilter)) {
+			continue
+		}
+
 		topicList = append(topicList, summary)
 	}
 
@@ -375,6 +381,11 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Apply name filter if specified (case-insensitive substring match)
+		if nameFilter != "" && !strings.Contains(strings.ToLower(summary.Name), strings.ToLower(nameFilter)) {
+			continue
+		}
+
 		topicList = append(topicList, summary)
 	}
 
@@ -389,6 +400,11 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 
 		// Apply type filter if specified
 		if topicType != "" && summary.Type != topicType {
+			continue
+		}
+
+		// Apply name filter if specified (case-insensitive substring match)
+		if nameFilter != "" && !strings.Contains(strings.ToLower(summary.Name), strings.ToLower(nameFilter)) {
 			continue
 		}
 

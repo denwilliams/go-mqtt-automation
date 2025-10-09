@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -60,10 +61,17 @@ interface Strategy {
 }
 
 export default function TopicsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [strategies, setStrategies] = useState<Strategy[]>([]);
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<string>(
+    searchParams.get("type") || "all"
+  );
   const [searchFilter, setSearchFilter] = useState<string>("");
-  const [showSubtopics, setShowSubtopics] = useState<boolean>(false);
+  const [showSubtopics, setShowSubtopics] = useState<boolean>(
+    searchParams.get("showSubtopics") === "true"
+  );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
   const [formData, setFormData] = useState({
@@ -82,6 +90,20 @@ export default function TopicsPage() {
   // Use custom hook for topics fetching
   const { topics, loading, error, loadingMore, observerTarget, refetch } =
     useTopics(filter);
+
+  // Update URL when filter or showSubtopics changes
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filter !== "all") {
+      params.set("type", filter);
+    }
+    if (showSubtopics) {
+      params.set("showSubtopics", "true");
+    }
+    const queryString = params.toString();
+    const newUrl = queryString ? `?${queryString}` : "/topics";
+    router.replace(newUrl, { scroll: false });
+  }, [filter, showSubtopics, router]);
 
   const fetchStrategies = async () => {
     try {
