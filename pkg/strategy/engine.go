@@ -132,11 +132,18 @@ func (e *Engine) ExecuteStrategy(strategyID string, inputs map[string]interface{
 		lastOutput = map[string]interface{}{}
 	}
 
+	// Get the triggering value
+	var triggeringValue interface{}
+	if triggerTopic != "" {
+		triggeringValue = inputs[triggerTopic]
+	}
+
 	// Create execution context
 	context := ExecutionContext{
 		InputValues:     inputs,
 		InputNames:      inputNames,
 		TriggeringTopic: triggerTopic,
+		TriggeringValue: triggeringValue,
 		LastOutputs:     lastOutput,
 		Parameters:      mergedParameters,
 		TopicName:       "", // This would be set by the topic manager

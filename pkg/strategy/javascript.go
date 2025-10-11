@@ -187,6 +187,7 @@ func (jse *JavaScriptExecutor) createContextObject(vm *goja.Runtime, context Exe
 
 	// Set other context properties
 	obj.Set("triggeringTopic", context.TriggeringTopic)
+	obj.Set("triggeringValue", context.TriggeringValue)
 	obj.Set("lastOutputs", context.LastOutputs)
 	obj.Set("topicName", context.TopicName)
 
