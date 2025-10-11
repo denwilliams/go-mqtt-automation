@@ -121,6 +121,7 @@ type StrategyListResponse struct {
 type StrategySummary struct {
 	ID                string    `json:"id"`
 	Name              string    `json:"name"`
+	Description       string    `json:"description"`
 	Language          string    `json:"language"`
 	Builtin           bool      `json:"builtin"`
 	CreatedAt         time.Time `json:"created_at"`
@@ -132,6 +133,7 @@ type StrategySummary struct {
 type StrategyDetail struct {
 	ID                string                 `json:"id"`
 	Name              string                 `json:"name"`
+	Description       string                 `json:"description"`
 	Code              string                 `json:"code"`
 	Language          string                 `json:"language"`
 	Builtin           bool                   `json:"builtin"`
@@ -145,6 +147,7 @@ type StrategyDetail struct {
 type StrategyCreateRequest struct {
 	ID                string                 `json:"id"`
 	Name              string                 `json:"name"`
+	Description       string                 `json:"description"`
 	Code              string                 `json:"code"`
 	Language          string                 `json:"language"`
 	Parameters        map[string]interface{} `json:"parameters,omitempty"`

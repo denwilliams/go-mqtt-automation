@@ -54,6 +54,7 @@ func (s *Server) handleAPIStrategiesList(w http.ResponseWriter, r *http.Request)
 		summary := StrategySummary{
 			ID:                strat.ID,
 			Name:              strat.Name,
+			Description:       strat.Description,
 			Language:          strat.Language,
 			Builtin:           strat.Builtin,
 			CreatedAt:         strat.CreatedAt,
@@ -123,6 +124,7 @@ func (s *Server) handleAPIStrategiesCreate(w http.ResponseWriter, r *http.Reques
 	strat := &strategy.Strategy{
 		ID:                req.ID,
 		Name:              req.Name,
+		Description:       req.Description,
 		Code:              req.Code,
 		Language:          req.Language,
 		Parameters:        req.Parameters,
@@ -199,6 +201,7 @@ func (s *Server) handleAPIStrategyGet(w http.ResponseWriter, r *http.Request, st
 	detail := StrategyDetail{
 		ID:                strat.ID,
 		Name:              strat.Name,
+		Description:       strat.Description,
 		Code:              strat.Code,
 		Language:          strat.Language,
 		Builtin:           strat.Builtin,
@@ -230,6 +233,7 @@ func (s *Server) handleAPIStrategyUpdate(w http.ResponseWriter, r *http.Request,
 	strat := &strategy.Strategy{
 		ID:                strategyID,
 		Name:              req.Name,
+		Description:       req.Description,
 		Code:              req.Code,
 		Language:          req.Language,
 		Parameters:        req.Parameters,
