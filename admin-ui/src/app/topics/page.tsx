@@ -52,6 +52,7 @@ interface Topic {
   strategy_id?: string;
   parameters?: { [key: string]: unknown };
   emit_to_mqtt?: boolean;
+  tags?: string[];
 }
 
 interface Strategy {
@@ -86,6 +87,8 @@ function TopicsContent() {
     strategy_id: "__none__",
     parameters: {} as { [key: string]: unknown },
     parameters_text: "{}",
+    tags: [] as string[],
+    tags_text: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -154,6 +157,8 @@ function TopicsContent() {
       strategy_id: "__none__",
       parameters: {},
       parameters_text: "{}",
+      tags: [],
+      tags_text: "",
     });
     setIsDialogOpen(true);
   };
@@ -172,6 +177,8 @@ function TopicsContent() {
       strategy_id: topic.strategy_id || "__none__",
       parameters: topic.parameters || {},
       parameters_text: JSON.stringify(topic.parameters || {}, null, 2),
+      tags: topic.tags || [],
+      tags_text: (topic.tags || []).join(", "),
     });
     setIsDialogOpen(true);
   };
@@ -203,6 +210,12 @@ function TopicsContent() {
       alert("Invalid JSON in parameters field");
       return;
     }
+
+    // Parse tags from comma-separated text
+    const parsedTags = formData.tags_text
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag !== "");
 
     setIsSubmitting(true);
     try {
@@ -236,6 +249,7 @@ function TopicsContent() {
             Object.keys(parsedParameters).length > 0
               ? parsedParameters
               : undefined,
+          tags: parsedTags.length > 0 ? parsedTags : undefined,
         }),
       });
 
@@ -299,15 +313,22 @@ function TopicsContent() {
     );
   };
 
-  // Filter topics by search term, type, and subtopic visibility
+  // Filter topics by search term, type, tag, and subtopic visibility
+  const tagFilter = searchParams.get("tag") || "";
   const filteredTopics = topics.filter((topic) => {
     const matchesSearch =
       searchFilter === "" ||
       topic.name.toLowerCase().includes(searchFilter.toLowerCase());
     const matchesType = filter === "all" || topic.type === filter;
     const matchesSubtopicFilter = showSubtopics || !isChildTopic(topic);
+    const matchesTag =
+      tagFilter === "" ||
+      (topic.tags &&
+        topic.tags.some((tag) =>
+          tag.toLowerCase().includes(tagFilter.toLowerCase())
+        ));
 
-    return matchesSearch && matchesType && matchesSubtopicFilter;
+    return matchesSearch && matchesType && matchesSubtopicFilter && matchesTag;
   });
 
   if (loading) {
@@ -360,13 +381,31 @@ function TopicsContent() {
       {/* Search and Filters */}
       <div className="mb-6 space-y-4">
         {/* Search */}
-        <div className="max-w-md">
-          <Input
-            placeholder="Search topics by name..."
-            value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
-            className="w-full"
-          />
+        <div className="flex gap-4">
+          <div className="flex-1 max-w-md">
+            <Input
+              placeholder="Search topics by name..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          <div className="flex-1 max-w-md">
+            <Input
+              placeholder="Filter by tag..."
+              value={searchParams.get("tag") || ""}
+              onChange={(e) => {
+                const params = new URLSearchParams(searchParams.toString());
+                if (e.target.value) {
+                  params.set("tag", e.target.value);
+                } else {
+                  params.delete("tag");
+                }
+                router.replace(`?${params.toString()}`, { scroll: false });
+              }}
+              className="w-full"
+            />
+          </div>
         </div>
 
         {/* Filter Buttons */}
@@ -414,7 +453,13 @@ function TopicsContent() {
           <CardTitle>Topics</CardTitle>
           <CardDescription>
             {filteredTopics.length} of {topics.length} topics{" "}
-            {searchFilter && `(filtered by "${searchFilter}")`}
+            {(searchFilter || tagFilter) &&
+              `(filtered by ${[
+                searchFilter && `name: "${searchFilter}"`,
+                tagFilter && `tag: "${tagFilter}"`,
+              ]
+                .filter(Boolean)
+                .join(", ")})`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -427,6 +472,7 @@ function TopicsContent() {
                   <TableHead className="w-[150px]">Last Value</TableHead>
                   <TableHead className="w-[120px]">Last Updated</TableHead>
                   <TableHead className="w-[150px]">Details</TableHead>
+                  <TableHead className="w-[120px]">Tags</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -495,6 +541,25 @@ function TopicsContent() {
                           <Badge variant="outline" className="text-xs">
                             MQTT
                           </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {topic.tags && topic.tags.length > 0 ? (
+                          topic.tags.map((tag) => (
+                            <Badge
+                              key={tag}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {tag}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            -
+                          </span>
                         )}
                       </div>
                     </TableCell>
@@ -787,6 +852,24 @@ function TopicsContent() {
                 Strategy-specific parameters as JSON. These override the
                 strategy&apos;s default parameters. Example: {"{"}
                 &quot;min&quot;: 20, &quot;max&quot;: 80{"}"}
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Tags (Optional)</label>
+              <Input
+                value={formData.tags_text}
+                onChange={(e) =>
+                  setFormData({ ...formData, tags_text: e.target.value })
+                }
+                placeholder="home, tesla, monitoring"
+                disabled={
+                  editingTopic?.type === "system" ||
+                  editingTopic?.type === "external"
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Comma-separated tags for organizing topics
               </p>
             </div>
           </div>

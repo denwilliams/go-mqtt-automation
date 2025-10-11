@@ -9,6 +9,7 @@ interface Topic {
   input_names?: { [key: string]: string }
   strategy_id?: string
   emit_to_mqtt?: boolean
+  tags?: string[]
 }
 
 export function useTopics(filter: string) {
