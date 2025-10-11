@@ -134,6 +134,248 @@ See configuration files for options including:
 
 For detailed database setup instructions, see [DATABASE.md](DATABASE.md).
 
+## API Reference
+
+The system provides a RESTful JSON API with CORS support for managing topics and strategies.
+
+### Base URL
+```
+http://localhost:8080/api/v1
+```
+
+### Response Format
+All API responses follow this structure:
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+Error responses:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable message",
+    "details": { ... }
+  }
+}
+```
+
+### Dashboard
+
+**Get Dashboard Stats**
+```
+GET /api/v1/dashboard
+```
+
+Returns system statistics including topic counts, strategy counts, and MQTT connection status.
+
+### Topics API
+
+**List Topics**
+```
+GET /api/v1/topics?type={type}&page={page}&limit={limit}&name={name}&tag={tag}
+```
+
+Query Parameters:
+- `type` (optional): Filter by type (`external`, `internal`, `system`)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 50, max: 100)
+- `name` (optional): Filter by topic name (case-insensitive substring match)
+- `tag` (optional): Filter by tag (case-insensitive partial match)
+
+**Get Topic Details**
+```
+GET /api/v1/topics/{topic-name}
+```
+
+**Create Topic**
+```
+POST /api/v1/topics
+Content-Type: application/json
+
+{
+  "name": "home/temperature/average",
+  "type": "internal",
+  "inputs": ["sensor/temp1", "sensor/temp2"],
+  "input_names": {
+    "sensor/temp1": "Living Room",
+    "sensor/temp2": "Bedroom"
+  },
+  "strategy_id": "average",
+  "parameters": {
+    "min": 15,
+    "max": 30
+  },
+  "emit_to_mqtt": true,
+  "noop_unchanged": false,
+  "tags": ["home", "temperature", "monitoring"]
+}
+```
+
+**Update Topic**
+```
+PUT /api/v1/topics/{topic-name}
+Content-Type: application/json
+
+{
+  "inputs": ["sensor/temp1", "sensor/temp2", "sensor/temp3"],
+  "strategy_id": "average",
+  "parameters": { "threshold": 25 },
+  "tags": ["home", "temperature"]
+}
+```
+
+**Delete Topic**
+```
+DELETE /api/v1/topics/{topic-name}
+```
+
+### Strategies API
+
+**List Strategies**
+```
+GET /api/v1/strategies?language={language}&type={type}&page={page}&limit={limit}
+```
+
+Query Parameters:
+- `language` (optional): Filter by language (`javascript`)
+- `type` (optional): Filter by type (`builtin`, `custom`)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 50, max: 100)
+
+**Get Strategy Details**
+```
+GET /api/v1/strategies/{strategy-id}
+```
+
+**Create Strategy**
+```
+POST /api/v1/strategies
+Content-Type: application/json
+
+{
+  "id": "my-custom-strategy",
+  "name": "My Custom Strategy",
+  "description": "Processes sensor data with custom logic",
+  "code": "function process(context) { return context.inputs['sensor1'] > 50; }",
+  "language": "javascript",
+  "parameters": {
+    "threshold": 50
+  },
+  "max_inputs": 3,
+  "default_input_names": ["Sensor 1", "Sensor 2", "Sensor 3"]
+}
+```
+
+**Update Strategy**
+```
+PUT /api/v1/strategies/{strategy-id}
+Content-Type: application/json
+
+{
+  "name": "Updated Strategy Name",
+  "description": "Updated description",
+  "code": "function process(context) { return true; }",
+  "parameters": { "threshold": 75 }
+}
+```
+
+**Delete Strategy**
+```
+DELETE /api/v1/strategies/{strategy-id}
+```
+
+**Test Strategy**
+```
+POST /api/v1/strategies/{strategy-id}/test
+Content-Type: application/json
+
+{
+  "inputs": {
+    "sensor/temp": 25.5,
+    "sensor/humidity": 60
+  },
+  "parameters": {
+    "threshold": 20
+  }
+}
+```
+
+Returns:
+```json
+{
+  "success": true,
+  "data": {
+    "result": true,
+    "log_messages": ["Temperature is above threshold"],
+    "emitted_events": [
+      {
+        "topic": "",
+        "value": true
+      }
+    ],
+    "execution_time_ms": 2
+  }
+}
+```
+
+### System API
+
+**Get System Info**
+```
+GET /api/v1/system/info
+```
+
+**Get System Stats**
+```
+GET /api/v1/system/stats
+```
+
+**Get System Activity**
+```
+GET /api/v1/system/activity
+```
+
+### Examples
+
+**Filter topics by tag and type:**
+```bash
+curl "http://localhost:8080/api/v1/topics?type=internal&tag=tesla"
+```
+
+**Create a topic with tags:**
+```bash
+curl -X POST http://localhost:8080/api/v1/topics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "tesla/battery/status",
+    "type": "internal",
+    "inputs": ["teslamate/cars/1/battery_level"],
+    "strategy_id": "threshold",
+    "parameters": {"min": 20, "max": 80},
+    "tags": ["tesla", "battery", "monitoring"]
+  }'
+```
+
+**Search topics by name:**
+```bash
+curl "http://localhost:8080/api/v1/topics?name=battery"
+```
+
+**Test a strategy:**
+```bash
+curl -X POST http://localhost:8080/api/v1/strategies/threshold/test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inputs": {"sensor/value": 75},
+    "parameters": {"min": 20, "max": 80}
+  }'
+```
+
 ## Monitoring & Metrics
 
 For Prometheus metrics and monitoring, we recommend using an external MQTT-to-Prometheus exporter rather than building metrics into the core system. This keeps the automation system lightweight and focused.
