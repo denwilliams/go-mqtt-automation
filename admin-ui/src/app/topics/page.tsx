@@ -68,7 +68,9 @@ function TopicsContent() {
   const [filter, setFilter] = useState<string>(
     searchParams.get("type") || "all"
   );
-  const [searchFilter, setSearchFilter] = useState<string>("");
+  const [searchFilter, setSearchFilter] = useState<string>(
+    searchParams.get("search") || ""
+  );
   const [showSubtopics, setShowSubtopics] = useState<boolean>(
     searchParams.get("showSubtopics") === "true"
   );
@@ -91,7 +93,7 @@ function TopicsContent() {
   const { topics, loading, error, loadingMore, observerTarget, refetch } =
     useTopics(filter);
 
-  // Update URL when filter or showSubtopics changes
+  // Update URL when filter, showSubtopics, or searchFilter changes
   useEffect(() => {
     const params = new URLSearchParams();
     if (filter !== "all") {
@@ -100,10 +102,13 @@ function TopicsContent() {
     if (showSubtopics) {
       params.set("showSubtopics", "true");
     }
+    if (searchFilter) {
+      params.set("search", searchFilter);
+    }
     const queryString = params.toString();
     const newUrl = queryString ? `?${queryString}` : "/topics";
     router.replace(newUrl, { scroll: false });
-  }, [filter, showSubtopics, router]);
+  }, [filter, showSubtopics, searchFilter, router]);
 
   const fetchStrategies = async () => {
     try {
