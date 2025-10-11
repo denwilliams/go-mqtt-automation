@@ -84,6 +84,7 @@ type TopicSummary struct {
 	StrategyID  string                 `json:"strategy_id,omitempty"`
 	Parameters  map[string]interface{} `json:"parameters,omitempty"`
 	EmitToMQTT  bool                   `json:"emit_to_mqtt,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
 }
 
 type TopicDetail struct {
@@ -99,6 +100,7 @@ type TopicDetail struct {
 	EmitToMQTT    bool                   `json:"emit_to_mqtt,omitempty"`
 	NoOpUnchanged bool                   `json:"noop_unchanged,omitempty"`
 	Config        map[string]interface{} `json:"config,omitempty"`
+	Tags          []string               `json:"tags,omitempty"`
 }
 
 type TopicCreateRequest struct {
@@ -110,6 +112,7 @@ type TopicCreateRequest struct {
 	Parameters    map[string]interface{} `json:"parameters,omitempty"`
 	EmitToMQTT    bool                   `json:"emit_to_mqtt,omitempty"`
 	NoOpUnchanged bool                   `json:"noop_unchanged,omitempty"`
+	Tags          []string               `json:"tags,omitempty"`
 }
 
 // Strategy structures
@@ -298,6 +301,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 	page, limit := parsePagination(r)
 	topicType := r.URL.Query().Get("type")
 	nameFilter := r.URL.Query().Get("name")
+	tagFilter := r.URL.Query().Get("tag")
 
 	// Get all topics from database (already ordered by name)
 	allTopicConfigs, err := s.stateManager.LoadAllTopicConfigs()
@@ -327,6 +331,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 				Type:        string(cfg.Type),
 				LastValue:   cfg.LastValue,
 				LastUpdated: cfg.LastUpdated,
+				Tags:        cfg.Tags,
 			}
 		case topics.InternalTopicConfig:
 			summary = TopicSummary{
@@ -339,6 +344,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 				StrategyID:  cfg.StrategyID,
 				Parameters:  cfg.Parameters,
 				EmitToMQTT:  cfg.EmitToMQTT,
+				Tags:        cfg.Tags,
 			}
 		case topics.SystemTopicConfig:
 			summary = TopicSummary{
@@ -346,6 +352,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 				Type:        string(cfg.Type),
 				LastValue:   cfg.LastValue,
 				LastUpdated: cfg.LastUpdated,
+				Tags:        cfg.Tags,
 			}
 		default:
 			s.logger.Printf("Unknown topic config type: %T", cfg)
@@ -360,6 +367,20 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 		// Apply name filter if specified (case-insensitive substring match)
 		if nameFilter != "" && !strings.Contains(strings.ToLower(summary.Name), strings.ToLower(nameFilter)) {
 			continue
+		}
+
+		// Apply tag filter if specified
+		if tagFilter != "" {
+			found := false
+			for _, tag := range summary.Tags {
+				if strings.EqualFold(tag, tagFilter) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
 		}
 
 		topicList = append(topicList, summary)
@@ -377,6 +398,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 			StrategyID:  childConfig.StrategyID,
 			Parameters:  childConfig.Parameters,
 			EmitToMQTT:  childConfig.EmitToMQTT,
+			Tags:        childConfig.Tags,
 		}
 
 		// Apply type filter if specified
@@ -387,6 +409,20 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 		// Apply name filter if specified (case-insensitive substring match)
 		if nameFilter != "" && !strings.Contains(strings.ToLower(summary.Name), strings.ToLower(nameFilter)) {
 			continue
+		}
+
+		// Apply tag filter if specified
+		if tagFilter != "" {
+			found := false
+			for _, tag := range summary.Tags {
+				if strings.EqualFold(tag, tagFilter) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
 		}
 
 		topicList = append(topicList, summary)
@@ -399,6 +435,7 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 			Type:        string(externalConfig.Type),
 			LastValue:   externalConfig.LastValue,
 			LastUpdated: externalConfig.LastUpdated,
+			Tags:        externalConfig.Tags,
 		}
 
 		// Apply type filter if specified
@@ -409,6 +446,20 @@ func (s *Server) handleAPITopicsList(w http.ResponseWriter, r *http.Request) {
 		// Apply name filter if specified (case-insensitive substring match)
 		if nameFilter != "" && !strings.Contains(strings.ToLower(summary.Name), strings.ToLower(nameFilter)) {
 			continue
+		}
+
+		// Apply tag filter if specified
+		if tagFilter != "" {
+			found := false
+			for _, tag := range summary.Tags {
+				if strings.EqualFold(tag, tagFilter) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
 		}
 
 		topicList = append(topicList, summary)
@@ -472,6 +523,7 @@ func (s *Server) handleAPITopicsCreate(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:   time.Now(),
 			LastUpdated: time.Now(),
 			Config:      make(map[string]interface{}),
+			Tags:        req.Tags,
 		},
 		Inputs:        req.Inputs,
 		InputNames:    req.InputNames,
@@ -559,12 +611,15 @@ func (s *Server) handleAPITopicGet(w http.ResponseWriter, r *http.Request, topic
 		detail.EmitToMQTT = cfg.EmitToMQTT
 		detail.NoOpUnchanged = cfg.NoOpUnchanged
 		detail.Config = cfg.Config
+		detail.Tags = cfg.Tags
 	case topics.BaseTopicConfig:
 		detail.CreatedAt = cfg.CreatedAt
 		detail.Config = cfg.Config
+		detail.Tags = cfg.Tags
 	case topics.SystemTopicConfig:
 		detail.CreatedAt = cfg.CreatedAt
 		detail.Config = cfg.Config
+		detail.Tags = cfg.Tags
 	}
 
 	writeAPIResponse(w, detail)
@@ -593,6 +648,7 @@ func (s *Server) handleAPITopicUpdate(w http.ResponseWriter, r *http.Request, to
 	config.EmitToMQTT = req.EmitToMQTT
 	config.NoOpUnchanged = req.NoOpUnchanged
 	config.Type = topics.TopicTypeInternal
+	config.Tags = req.Tags
 
 	// Save to database first
 	if err := s.stateManager.SaveTopicConfig(config); err != nil {

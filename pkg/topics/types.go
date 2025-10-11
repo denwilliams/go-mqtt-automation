@@ -29,6 +29,7 @@ type BaseTopicConfig struct {
 	LastUpdated time.Time              `json:"last_updated" db:"last_updated"`
 	CreatedAt   time.Time              `json:"created_at" db:"created_at"`
 	Config      map[string]interface{} `json:"config" db:"config"`
+	Tags        []string               `json:"tags,omitempty" db:"tags"`
 }
 
 type InternalTopicConfig struct {
@@ -88,4 +89,23 @@ func (itc *InternalTopicConfig) UnmarshalInputs(data string) error {
 		return nil
 	}
 	return json.Unmarshal([]byte(data), &itc.Inputs)
+}
+
+func (btc *BaseTopicConfig) MarshalTags() (string, error) {
+	if len(btc.Tags) == 0 {
+		return "", nil
+	}
+	data, err := json.Marshal(btc.Tags)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (btc *BaseTopicConfig) UnmarshalTags(data string) error {
+	if data == "" {
+		btc.Tags = []string{}
+		return nil
+	}
+	return json.Unmarshal([]byte(data), &btc.Tags)
 }

@@ -108,9 +108,14 @@ func (s *SQLiteDatabase) saveBaseTopic(config topics.BaseTopicConfig) error {
 		return fmt.Errorf("failed to marshal last value: %w", err)
 	}
 
+	tagsJSON, err := json.Marshal(config.Tags)
+	if err != nil {
+		return fmt.Errorf("failed to marshal tags: %w", err)
+	}
+
 	query := `
-		INSERT OR REPLACE INTO topics (name, type, last_value, last_updated, config, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT OR REPLACE INTO topics (name, type, last_value, last_updated, config, created_at, tags)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err = s.db.Exec(query,
@@ -120,6 +125,7 @@ func (s *SQLiteDatabase) saveBaseTopic(config topics.BaseTopicConfig) error {
 		config.LastUpdated,
 		string(configJSON),
 		config.CreatedAt,
+		string(tagsJSON),
 	)
 
 	return err
@@ -151,9 +157,14 @@ func (s *SQLiteDatabase) saveInternalTopic(config topics.InternalTopicConfig) er
 		return fmt.Errorf("failed to marshal parameters: %w", err)
 	}
 
+	tagsJSON, err := json.Marshal(config.Tags)
+	if err != nil {
+		return fmt.Errorf("failed to marshal tags: %w", err)
+	}
+
 	query := `
-		INSERT OR REPLACE INTO topics (name, type, inputs, input_names, strategy_id, parameters, emit_to_mqtt, noop_unchanged, last_value, last_updated, config, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT OR REPLACE INTO topics (name, type, inputs, input_names, strategy_id, parameters, emit_to_mqtt, noop_unchanged, last_value, last_updated, config, created_at, tags)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err = s.db.Exec(query,
@@ -169,6 +180,7 @@ func (s *SQLiteDatabase) saveInternalTopic(config topics.InternalTopicConfig) er
 		config.LastUpdated,
 		string(configJSON),
 		config.CreatedAt,
+		string(tagsJSON),
 	)
 
 	return err
@@ -185,9 +197,14 @@ func (s *SQLiteDatabase) saveSystemTopic(config topics.SystemTopicConfig) error 
 		return fmt.Errorf("failed to marshal last value: %w", err)
 	}
 
+	tagsJSON, err := json.Marshal(config.Tags)
+	if err != nil {
+		return fmt.Errorf("failed to marshal tags: %w", err)
+	}
+
 	query := `
-		INSERT OR REPLACE INTO topics (name, type, last_value, last_updated, config, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT OR REPLACE INTO topics (name, type, last_value, last_updated, config, created_at, tags)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err = s.db.Exec(query,
@@ -197,6 +214,7 @@ func (s *SQLiteDatabase) saveSystemTopic(config topics.SystemTopicConfig) error 
 		config.LastUpdated,
 		string(configJSON),
 		config.CreatedAt,
+		string(tagsJSON),
 	)
 
 	return err
@@ -205,7 +223,7 @@ func (s *SQLiteDatabase) saveSystemTopic(config topics.SystemTopicConfig) error 
 func (s *SQLiteDatabase) LoadTopic(name string) (interface{}, error) {
 	query := `
 		SELECT name, type, inputs, input_names, strategy_id, parameters, emit_to_mqtt, noop_unchanged,
-		       last_value, last_updated, config, created_at
+		       last_value, last_updated, config, created_at, tags
 		FROM topics WHERE name = ?
 	`
 
@@ -216,10 +234,11 @@ func (s *SQLiteDatabase) LoadTopic(name string) (interface{}, error) {
 	var emitToMQTT, noopUnchanged sql.NullBool
 	var lastValue sql.NullString
 	var config string
+	var tags sql.NullString
 	var lastUpdated, createdAt time.Time
 
 	err := row.Scan(&topicName, &topicType, &inputs, &inputNames, &strategyID, &parameters,
-		&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &config, &createdAt)
+		&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &config, &createdAt, &tags)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("topic not found: %s", name)
@@ -228,13 +247,13 @@ func (s *SQLiteDatabase) LoadTopic(name string) (interface{}, error) {
 	}
 
 	return s.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID, parameters,
-		emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config)
+		emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config, tags)
 }
 
 func (s *SQLiteDatabase) LoadAllTopics() ([]interface{}, error) {
 	query := `
 		SELECT name, type, inputs, input_names, strategy_id, parameters, emit_to_mqtt, noop_unchanged,
-		       last_value, last_updated, config, created_at
+		       last_value, last_updated, config, created_at, tags
 		FROM topics ORDER BY name
 	`
 
@@ -252,16 +271,17 @@ func (s *SQLiteDatabase) LoadAllTopics() ([]interface{}, error) {
 		var emitToMQTT, noopUnchanged sql.NullBool
 		var lastValue sql.NullString
 		var config string
+		var tags sql.NullString
 		var lastUpdated, createdAt time.Time
 
 		err := rows.Scan(&topicName, &topicType, &inputs, &inputNames, &strategyID, &parameters,
-			&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &config, &createdAt)
+			&emitToMQTT, &noopUnchanged, &lastValue, &lastUpdated, &config, &createdAt, &tags)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan topic row: %w", err)
 		}
 
 		topicConfig, err := s.buildTopicConfig(topicName, topicType, inputs, inputNames, strategyID, parameters,
-			emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config)
+			emitToMQTT, noopUnchanged, lastValue, lastUpdated, createdAt, config, tags)
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +294,7 @@ func (s *SQLiteDatabase) LoadAllTopics() ([]interface{}, error) {
 
 func (s *SQLiteDatabase) buildTopicConfig(name, topicType string, inputs, inputNames, strategyID, parameters sql.NullString,
 	emitToMQTT, noopUnchanged sql.NullBool, lastValue sql.NullString, lastUpdated, createdAt time.Time,
-	config string) (interface{}, error) {
+	config string, tags sql.NullString) (interface{}, error) {
 
 	// Parse common fields
 	var parsedLastValue interface{}
@@ -291,6 +311,15 @@ func (s *SQLiteDatabase) buildTopicConfig(name, topicType string, inputs, inputN
 		parsedConfig = make(map[string]interface{})
 	}
 
+	var parsedTags []string
+	if tags.Valid && tags.String != "" {
+		if err := json.Unmarshal([]byte(tags.String), &parsedTags); err != nil {
+			parsedTags = []string{}
+		}
+	} else {
+		parsedTags = []string{}
+	}
+
 	baseConfig := topics.BaseTopicConfig{
 		Name:        name,
 		Type:        topics.TopicType(topicType),
@@ -298,6 +327,7 @@ func (s *SQLiteDatabase) buildTopicConfig(name, topicType string, inputs, inputN
 		LastUpdated: lastUpdated,
 		CreatedAt:   createdAt,
 		Config:      parsedConfig,
+		Tags:        parsedTags,
 	}
 
 	switch topics.TopicType(topicType) {

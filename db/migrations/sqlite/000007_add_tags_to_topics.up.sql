@@ -1,0 +1,5 @@
+-- Add tags column to topics table
+ALTER TABLE topics ADD COLUMN tags TEXT;
+
+-- Add index for tags to support filtering
+CREATE INDEX idx_topics_tags ON topics(tags);
