@@ -84,11 +84,6 @@ func (s *Server) setupRoutes() {
 	http.HandleFunc("/api/v1/system/stats", s.handleAPISystemStats)
 	http.HandleFunc("/api/v1/system/activity", s.handleAPISystemActivity)
 
-	// Legacy API endpoints for backwards compatibility
-	http.HandleFunc("/api/topics", s.handleAPITopics)
-	http.HandleFunc("/api/strategies", s.handleAPIStrategies)
-	http.HandleFunc("/api/system/status", s.handleAPISystemStatus)
-
 	// Static file serving for admin UI (catch-all handler)
 	http.HandleFunc("/", s.handleStaticFiles)
 
