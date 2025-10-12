@@ -93,20 +93,3 @@ func (s *Server) setupRoutes() {
 
 	s.logger.Println("Web server routes configured")
 }
-
-func (s *Server) getSystemStatus() string {
-	if s.mqttClient == nil {
-		return "MQTT Client Not Configured"
-	}
-
-	switch s.mqttClient.GetState() {
-	case mqtt.ConnectionStateConnected:
-		return "Connected"
-	case mqtt.ConnectionStateConnecting:
-		return "Connecting"
-	case mqtt.ConnectionStateReconnecting:
-		return "Reconnecting"
-	default:
-		return "Disconnected"
-	}
-}
