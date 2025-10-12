@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/denwilliams/go-mqtt-automation/pkg/metrics"
 	"github.com/denwilliams/go-mqtt-automation/pkg/mqtt"
 	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
 )
@@ -112,6 +113,8 @@ func (it *InternalTopic) Emit(value interface{}) error {
 }
 
 func (it *InternalTopic) ProcessInputs(triggerTopic string) error {
+	startTime := time.Now()
+
 	if it.manager == nil {
 		return fmt.Errorf("topic manager not set")
 	}
@@ -158,14 +161,28 @@ func (it *InternalTopic) ProcessInputs(triggerTopic string) error {
 	// Execute strategy with topic parameters
 	emittedEvents, err := it.manager.ExecuteStrategy(it.config.StrategyID, inputValues, it.config.InputNames, triggerTopic, it.config.LastValue, it.config.Parameters)
 	if err != nil {
+		metrics.RecordTopicProcessingError(it.config.StrategyID, "strategy_execution")
 		return fmt.Errorf("strategy execution failed: %w", err)
 	}
 
 	// Process all emitted events
-	return it.processEmittedEvents(emittedEvents)
+	err = it.processEmittedEvents(emittedEvents)
+
+	// Record metrics
+	duration := time.Since(startTime).Seconds()
+	metrics.RecordTopicProcessed(it.config.StrategyID, "internal", duration)
+
+	if err != nil {
+		metrics.RecordTopicProcessingError(it.config.StrategyID, "emit_events")
+		return err
+	}
+
+	return nil
 }
 
 func (it *InternalTopic) emitToMQTT(value interface{}) error {
+	startTime := time.Now()
+
 	if it.manager == nil || it.manager.mqttClient == nil {
 		return fmt.Errorf("MQTT client not available")
 	}
@@ -178,9 +195,15 @@ func (it *InternalTopic) emitToMQTT(value interface{}) error {
 
 	// Publish to MQTT
 	err = it.manager.mqttClient.Publish(it.config.Name, payload, false)
+
+	// Record metrics
+	duration := time.Since(startTime).Seconds()
 	if err != nil {
+		metrics.RecordMQTTPublishError(it.config.Name)
 		return err
 	}
+
+	metrics.RecordMQTTPublish(it.config.Name, duration)
 
 	// Log successful MQTT emission
 	if it.manager.logger != nil {

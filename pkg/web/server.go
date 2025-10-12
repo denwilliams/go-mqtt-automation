@@ -11,6 +11,7 @@ import (
 	"github.com/denwilliams/go-mqtt-automation/pkg/state"
 	"github.com/denwilliams/go-mqtt-automation/pkg/strategy"
 	"github.com/denwilliams/go-mqtt-automation/pkg/topics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -83,6 +84,9 @@ func (s *Server) setupRoutes() {
 	http.HandleFunc("/api/v1/system/info", s.handleAPISystemInfo)
 	http.HandleFunc("/api/v1/system/stats", s.handleAPISystemStats)
 	http.HandleFunc("/api/v1/system/activity", s.handleAPISystemActivity)
+
+	// Metrics endpoint (Prometheus format)
+	http.Handle("/metrics", promhttp.Handler())
 
 	// Static file serving for admin UI (catch-all handler)
 	http.HandleFunc("/", s.handleStaticFiles)

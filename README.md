@@ -134,6 +134,24 @@ See configuration files for options including:
 
 For detailed database setup instructions, see [DATABASE.md](DATABASE.md).
 
+## Monitoring and Metrics
+
+The system exposes Prometheus metrics at `/metrics` for monitoring performance and identifying bottlenecks.
+
+**Metrics Endpoint:**
+```
+http://localhost:8080/metrics
+```
+
+**Key metrics include:**
+- Topic processing counts and latency (by strategy)
+- Database query counts and duration (by operation and read/write mode)
+- MQTT message counts (published/received by topic)
+- MQTT connection state
+- Strategy execution times and errors
+
+For complete metrics documentation, Prometheus queries, and Grafana dashboard setup, see [METRICS.md](METRICS.md).
+
 ## API Reference
 
 The system provides a RESTful JSON API with CORS support for managing topics and strategies.

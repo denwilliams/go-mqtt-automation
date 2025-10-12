@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/denwilliams/go-mqtt-automation/pkg/config"
+	"github.com/denwilliams/go-mqtt-automation/pkg/metrics"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
@@ -89,6 +90,9 @@ func (c *Client) Connect() error {
 	c.state = ConnectionStateConnected
 	c.logger.Println("Successfully connected to MQTT broker")
 
+	// Update connection metrics
+	metrics.SetMQTTConnectionState(c.config.Broker, true)
+
 	// Subscribe to configured topics (async to prevent blocking)
 	go func() {
 		for _, topic := range c.config.Topics {
@@ -118,6 +122,10 @@ func (c *Client) Disconnect() {
 	}
 
 	c.state = ConnectionStateClosed
+
+	// Update connection metrics
+	metrics.SetMQTTConnectionState(c.config.Broker, false)
+
 	c.logger.Println("Disconnected from MQTT broker")
 }
 
@@ -253,6 +261,9 @@ func (c *Client) onMessage(client mqtt.Client, msg mqtt.Message) {
 }
 
 func (c *Client) handleTopicMessage(event Event) error {
+	// Record MQTT message received
+	metrics.RecordMQTTReceive(event.Topic)
+
 	c.logger.Printf("Received message on topic %s: %s", event.Topic, string(event.Payload))
 
 	// Notify topic manager if available
