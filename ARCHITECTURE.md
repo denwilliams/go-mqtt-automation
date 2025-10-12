@@ -122,11 +122,14 @@ MQTT Broker → MQTT Client → Topic Manager → Strategy Engine → Topic Upda
 Provides REST API and web interface for system management.
 
 #### API Endpoints
-- `GET /api/topics` - List all topics with types and values
-- `GET /api/strategies` - List all available strategies
-- `GET /api/system/status` - System health and statistics
-- `POST /strategies` - Create new strategies
-- `POST /topics` - Create new internal topics
+- `GET /api/v1/topics` - List all topics with filtering and pagination
+- `GET /api/v1/strategies` - List all available strategies
+- `GET /api/v1/dashboard` - System health and statistics
+- `POST /api/v1/topics` - Create new internal topics
+- `POST /api/v1/strategies` - Create new strategies
+- Full RESTful CRUD operations for topics and strategies
+
+See [README.md](README.md#api-reference) for complete API documentation.
 
 #### Web Interface
 - Dashboard with system overview
