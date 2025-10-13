@@ -682,18 +682,52 @@ func (m *Manager) RestoreTopicStatesFromDatabase() error {
 			}
 		} else {
 			// Topic not in memory
-			// Only create as external if it's NOT a configured internal/system topic
-			if !configuredTopics[topicName] {
-				// This is truly an external topic that hasn't been seen yet
-				externalTopic := m.AddExternalTopic(topicName)
-				externalTopic.config.LastValue = value
-				externalTopic.config.LastUpdated = time.Now()
-				m.logger.Printf("Restored external topic: %s", topicName)
-				restoredCount++
-			} else {
+			if configuredTopics[topicName] {
 				// This is a configured topic that failed to load - skip it
 				m.logger.Printf("Skipping state restore for missing configured topic: %s", topicName)
 				skippedCount++
+			} else {
+				// Not a configured topic - could be external or child topic
+				// Check if this looks like a child topic (has a parent in configured topics)
+				isChildTopic := false
+				for configuredName := range configuredTopics {
+					if strings.HasPrefix(topicName, configuredName+"/") {
+						// This is a child of a configured topic
+						isChildTopic = true
+						break
+					}
+				}
+
+				if isChildTopic {
+					// Restore as child topic (internal topic with no strategy)
+					childTopic := &InternalTopic{
+						config: InternalTopicConfig{
+							BaseTopicConfig: BaseTopicConfig{
+								Name:        topicName,
+								Type:        TopicTypeInternal,
+								LastValue:   value,
+								LastUpdated: time.Now(),
+								CreatedAt:   time.Now(),
+							},
+							Inputs:        []string{},
+							StrategyID:    "",
+							EmitToMQTT:    false,
+							NoOpUnchanged: false,
+						},
+						manager: m,
+					}
+					m.internalTopics[topicName] = childTopic
+					m.topics[topicName] = childTopic
+					m.logger.Printf("Restored child topic: %s", topicName)
+					restoredCount++
+				} else {
+					// This is truly an external topic that hasn't been seen yet
+					externalTopic := m.AddExternalTopic(topicName)
+					externalTopic.config.LastValue = value
+					externalTopic.config.LastUpdated = time.Now()
+					m.logger.Printf("Restored external topic: %s", topicName)
+					restoredCount++
+				}
 			}
 		}
 	}
