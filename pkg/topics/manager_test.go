@@ -63,9 +63,11 @@ func (m *mockStrategyExecutor) GetStrategy(strategyID string) (*strategy.Strateg
 
 // Mock state manager for testing
 type mockStateManager struct {
-	saveFunc       func(topicName string, value interface{}) error
-	loadFunc       func(topicName string) (interface{}, error)
-	loadConfigFunc func(topicName string) (interface{}, error)
+	saveFunc           func(topicName string, value interface{}) error
+	loadFunc           func(topicName string) (interface{}, error)
+	loadConfigFunc     func(topicName string) (interface{}, error)
+	loadAllConfigsFunc func() ([]interface{}, error)
+	restoreStatesFunc  func() (map[string]interface{}, error)
 }
 
 func (m *mockStateManager) SaveTopicState(topicName string, value interface{}) error {
@@ -87,6 +89,20 @@ func (m *mockStateManager) LoadTopicConfig(topicName string) (interface{}, error
 		return m.loadConfigFunc(topicName)
 	}
 	return nil, nil
+}
+
+func (m *mockStateManager) LoadAllTopicConfigs() ([]interface{}, error) {
+	if m.loadAllConfigsFunc != nil {
+		return m.loadAllConfigsFunc()
+	}
+	return nil, nil
+}
+
+func (m *mockStateManager) RestoreTopicStates() (map[string]interface{}, error) {
+	if m.restoreStatesFunc != nil {
+		return m.restoreStatesFunc()
+	}
+	return make(map[string]interface{}), nil
 }
 
 func TestNewManager(t *testing.T) {
@@ -521,13 +537,13 @@ func TestSaveTopicState(t *testing.T) {
 		t.Errorf("SaveTopicState() failed without state manager: %v", err)
 	}
 
-	// Test with state manager
+	// Test with state manager - unknown topic type should use "topic:" prefix
 	saveCalled := false
 	mockState := &mockStateManager{
-		saveFunc: func(topicName string, value interface{}) error {
+		saveFunc: func(stateKey string, value interface{}) error {
 			saveCalled = true
-			if topicName != "test/topic" {
-				t.Errorf("topic name = %q, want 'test/topic'", topicName)
+			if stateKey != "topic:test/topic" {
+				t.Errorf("state key = %q, want 'topic:test/topic'", stateKey)
 			}
 			if value != "test value" {
 				t.Errorf("value = %q, want 'test value'", value)
@@ -544,6 +560,26 @@ func TestSaveTopicState(t *testing.T) {
 
 	if !saveCalled {
 		t.Error("state manager save was not called")
+	}
+
+	// Test with external topic - should use "external:" prefix
+	manager.AddExternalTopic("sensors/temp")
+	saveCalled = false
+	mockState.saveFunc = func(stateKey string, value interface{}) error {
+		saveCalled = true
+		if stateKey != "external:sensors/temp" {
+			t.Errorf("state key = %q, want 'external:sensors/temp'", stateKey)
+		}
+		return nil
+	}
+
+	err = manager.SaveTopicState("sensors/temp", 25.5)
+	if err != nil {
+		t.Errorf("SaveTopicState() failed for external topic: %v", err)
+	}
+
+	if !saveCalled {
+		t.Error("state manager save was not called for external topic")
 	}
 }
 

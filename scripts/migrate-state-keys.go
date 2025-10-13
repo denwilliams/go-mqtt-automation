@@ -45,8 +45,8 @@ func main() {
 	for rows.Next() {
 		var cfg topicConfig
 		var strategyID sql.NullString
-		if err := rows.Scan(&cfg.Name, &cfg.Type, &strategyID); err != nil {
-			log.Printf("Failed to scan topic row: %v", err)
+		if scanErr := rows.Scan(&cfg.Name, &cfg.Type, &strategyID); scanErr != nil {
+			log.Printf("Failed to scan topic row: %v", scanErr)
 			continue
 		}
 		if strategyID.Valid {
@@ -68,8 +68,8 @@ func main() {
 	for stateRows.Next() {
 		var key string
 		var value string
-		if err := stateRows.Scan(&key, &value); err != nil {
-			log.Printf("Failed to scan state row: %v", err)
+		if scanErr := stateRows.Scan(&key, &value); scanErr != nil {
+			log.Printf("Failed to scan state row: %v", scanErr)
 			continue
 		}
 
@@ -83,16 +83,17 @@ func main() {
 		// Determine new key based on topic type
 		if cfg, exists := configuredTopics[topicName]; exists {
 			// This is a configured topic
-			if cfg.Type == "system" {
+			switch cfg.Type {
+			case "system":
 				newKey = "system:" + topicName
-			} else if cfg.Type == "internal" {
+			case "internal":
 				if cfg.StrategyID == "" {
 					// Internal topic with no strategy = child topic
 					newKey = "child:" + topicName
 				} else {
 					newKey = "internal:" + topicName
 				}
-			} else {
+			default:
 				// Default to internal if type is unclear
 				newKey = "internal:" + topicName
 			}

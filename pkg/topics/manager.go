@@ -440,22 +440,30 @@ func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}
 		// Update MQTT emission setting to match parent topic
 		existingTopic.config.EmitToMQTT = emitToMQTT
 
-		// Save state to database
-		if err := m.SaveTopicState(topicName, value); err != nil {
-			m.mutex.Unlock()
-			return fmt.Errorf("failed to save topic state: %w", err)
+		// Determine state key while holding lock
+		var stateKey string
+		if existingTopic.config.StrategyID == "" {
+			stateKey = "child:" + topicName
+		} else {
+			stateKey = "internal:" + topicName
 		}
 
-		// Emit to MQTT if enabled
-		if emitToMQTT {
-			if err := existingTopic.emitToMQTT(value); err != nil {
-				m.mutex.Unlock()
-				return fmt.Errorf("failed to emit to MQTT: %w", err)
+		// Release lock before calling state manager to avoid deadlock
+		m.mutex.Unlock()
+
+		// Save state to database
+		if m.stateManager != nil {
+			if err := m.stateManager.SaveTopicState(stateKey, value); err != nil {
+				return fmt.Errorf("failed to save topic state: %w", err)
 			}
 		}
 
-		// Release lock before triggering other topics to prevent deadlock
-		m.mutex.Unlock()
+		// Emit to MQTT if enabled (no lock needed for MQTT client)
+		if emitToMQTT {
+			if err := existingTopic.emitToMQTT(value); err != nil {
+				return fmt.Errorf("failed to emit to MQTT: %w", err)
+			}
+		}
 
 		// Notify other topics that depend on this derived topic
 		event := TopicEvent{
@@ -503,15 +511,20 @@ func (m *Manager) createOrUpdateDerivedTopic(topicName string, value interface{}
 	m.internalTopics[topicName] = newTopic
 	m.topics[topicName] = newTopic
 
-	// Save state to database
-	if err := m.SaveTopicState(topicName, value); err != nil {
-		return fmt.Errorf("failed to save topic state for %s: %w", topicName, err)
-	}
+	// Determine state key while holding lock (child topics have no strategy)
+	stateKey := "child:" + topicName
 
 	m.logger.Printf("Created new derived internal topic: %s", topicName)
 
-	// Release lock before triggering other topics to prevent deadlock
+	// Release lock before calling state manager to avoid deadlock
 	m.mutex.Unlock()
+
+	// Save state to database
+	if m.stateManager != nil {
+		if err := m.stateManager.SaveTopicState(stateKey, value); err != nil {
+			return fmt.Errorf("failed to save topic state for %s: %w", topicName, err)
+		}
+	}
 
 	// Notify other topics that might depend on this new derived topic
 	event := TopicEvent{
