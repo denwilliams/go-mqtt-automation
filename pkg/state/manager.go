@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/denwilliams/go-mqtt-automation/pkg/config"
@@ -58,10 +59,10 @@ func (m *Manager) Close() error {
 func (m *Manager) SaveTopicState(topicName string, value interface{}) error {
 	startTime := time.Now()
 
-	// Save to state table (for LoadTopicState compatibility)
-	// TODO - consolidate state management approach
-	key := fmt.Sprintf("topic:%s", topicName)
-	if err := m.db.SaveState(key, value); err != nil {
+	// Save to state table
+	// Note: topicName may already include a type prefix (external:, internal:, child:, system:)
+	// or may be a plain topic name for backward compatibility
+	if err := m.db.SaveState(topicName, value); err != nil {
 		metrics.RecordDatabaseError("save_topic_state")
 		m.logger.Printf("Failed to save topic state for %s: %v", topicName, err)
 		return err
@@ -71,10 +72,19 @@ func (m *Manager) SaveTopicState(topicName string, value interface{}) error {
 	metrics.RecordDatabaseQuery("save_topic_state", "write", time.Since(startTime).Seconds())
 
 	// Also update the last_value column in topics table (for API display)
+	// Extract actual topic name if it has a type prefix
+	actualTopicName := topicName
+	for _, prefix := range []string{"external:", "internal:", "child:", "system:", "topic:"} {
+		if strings.HasPrefix(topicName, prefix) {
+			actualTopicName = strings.TrimPrefix(topicName, prefix)
+			break
+		}
+	}
+
 	updateStart := time.Now()
-	if err := m.db.UpdateTopicLastValue(topicName, value); err != nil {
+	if err := m.db.UpdateTopicLastValue(actualTopicName, value); err != nil {
 		metrics.RecordDatabaseError("update_topic_last_value")
-		m.logger.Printf("Failed to update topic last value for %s: %v", topicName, err)
+		m.logger.Printf("Failed to update topic last value for %s: %v", actualTopicName, err)
 		// Don't return error here - state table update succeeded
 	} else {
 		metrics.RecordDatabaseQuery("update_topic_last_value", "write", time.Since(updateStart).Seconds())

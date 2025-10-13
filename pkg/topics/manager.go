@@ -286,7 +286,27 @@ func (m *Manager) SaveTopicState(topicName string, value interface{}) error {
 		return nil // No state manager configured
 	}
 
-	return m.stateManager.SaveTopicState(topicName, value)
+	// Determine topic type and use appropriate prefix
+	m.mutex.RLock()
+	var stateKey string
+	if _, exists := m.externalTopics[topicName]; exists {
+		stateKey = "external:" + topicName
+	} else if internalTopic, exists := m.internalTopics[topicName]; exists {
+		// Check if it's a child topic (internal topic with no strategy)
+		if internalTopic.config.StrategyID == "" {
+			stateKey = "child:" + topicName
+		} else {
+			stateKey = "internal:" + topicName
+		}
+	} else if _, exists := m.systemTopics[topicName]; exists {
+		stateKey = "system:" + topicName
+	} else {
+		// Fallback to old format if topic type cannot be determined
+		stateKey = "topic:" + topicName
+	}
+	m.mutex.RUnlock()
+
+	return m.stateManager.SaveTopicState(stateKey, value)
 }
 
 func (m *Manager) LoadTopicState(topicName string) (interface{}, error) {
@@ -661,7 +681,48 @@ func (m *Manager) RestoreTopicStatesFromDatabase() error {
 
 	restoredCount := 0
 	skippedCount := 0
-	for topicName, value := range savedStates {
+	for stateKey, value := range savedStates {
+		// Parse the state key to determine topic type and name
+		var topicType, topicName string
+		if strings.HasPrefix(stateKey, "external:") {
+			topicType = "external"
+			topicName = strings.TrimPrefix(stateKey, "external:")
+		} else if strings.HasPrefix(stateKey, "internal:") {
+			topicType = "internal"
+			topicName = strings.TrimPrefix(stateKey, "internal:")
+		} else if strings.HasPrefix(stateKey, "child:") {
+			topicType = "child"
+			topicName = strings.TrimPrefix(stateKey, "child:")
+		} else if strings.HasPrefix(stateKey, "system:") {
+			topicType = "system"
+			topicName = strings.TrimPrefix(stateKey, "system:")
+		} else if strings.HasPrefix(stateKey, "topic:") {
+			// Legacy format - try to determine type
+			topicName = strings.TrimPrefix(stateKey, "topic:")
+			if configuredTopics[topicName] {
+				topicType = "internal" // or system, will be determined below
+			} else {
+				// Check if child topic by prefix matching
+				isChild := false
+				for configuredName := range configuredTopics {
+					if strings.HasPrefix(topicName, configuredName+"/") {
+						isChild = true
+						break
+					}
+				}
+				if isChild {
+					topicType = "child"
+				} else {
+					topicType = "external"
+				}
+			}
+		} else {
+			// Unknown format, skip
+			m.logger.Printf("Skipping state with unknown key format: %s", stateKey)
+			skippedCount++
+			continue
+		}
+
 		// Check if topic exists in memory
 		topic := m.GetTopic(topicName)
 		if topic != nil {
@@ -681,53 +742,44 @@ func (m *Manager) RestoreTopicStatesFromDatabase() error {
 				restoredCount++
 			}
 		} else {
-			// Topic not in memory
-			if configuredTopics[topicName] {
-				// This is a configured topic that failed to load - skip it
+			// Topic not in memory - create based on type
+			switch topicType {
+			case "external":
+				externalTopic := m.AddExternalTopic(topicName)
+				externalTopic.config.LastValue = value
+				externalTopic.config.LastUpdated = time.Now()
+				m.logger.Printf("Restored external topic: %s", topicName)
+				restoredCount++
+			case "child":
+				childTopic := &InternalTopic{
+					config: InternalTopicConfig{
+						BaseTopicConfig: BaseTopicConfig{
+							Name:        topicName,
+							Type:        TopicTypeInternal,
+							LastValue:   value,
+							LastUpdated: time.Now(),
+							CreatedAt:   time.Now(),
+						},
+						Inputs:        []string{},
+						StrategyID:    "",
+						EmitToMQTT:    false,
+						NoOpUnchanged: false,
+					},
+					manager: m,
+				}
+				m.mutex.Lock()
+				m.internalTopics[topicName] = childTopic
+				m.topics[topicName] = childTopic
+				m.mutex.Unlock()
+				m.logger.Printf("Restored child topic: %s", topicName)
+				restoredCount++
+			case "internal", "system":
+				// Configured topic that failed to load - skip
 				m.logger.Printf("Skipping state restore for missing configured topic: %s", topicName)
 				skippedCount++
-			} else {
-				// Not a configured topic - could be external or child topic
-				// Check if this looks like a child topic (has a parent in configured topics)
-				isChildTopic := false
-				for configuredName := range configuredTopics {
-					if strings.HasPrefix(topicName, configuredName+"/") {
-						// This is a child of a configured topic
-						isChildTopic = true
-						break
-					}
-				}
-
-				if isChildTopic {
-					// Restore as child topic (internal topic with no strategy)
-					childTopic := &InternalTopic{
-						config: InternalTopicConfig{
-							BaseTopicConfig: BaseTopicConfig{
-								Name:        topicName,
-								Type:        TopicTypeInternal,
-								LastValue:   value,
-								LastUpdated: time.Now(),
-								CreatedAt:   time.Now(),
-							},
-							Inputs:        []string{},
-							StrategyID:    "",
-							EmitToMQTT:    false,
-							NoOpUnchanged: false,
-						},
-						manager: m,
-					}
-					m.internalTopics[topicName] = childTopic
-					m.topics[topicName] = childTopic
-					m.logger.Printf("Restored child topic: %s", topicName)
-					restoredCount++
-				} else {
-					// This is truly an external topic that hasn't been seen yet
-					externalTopic := m.AddExternalTopic(topicName)
-					externalTopic.config.LastValue = value
-					externalTopic.config.LastUpdated = time.Now()
-					m.logger.Printf("Restored external topic: %s", topicName)
-					restoredCount++
-				}
+			default:
+				m.logger.Printf("Unknown topic type '%s' for: %s", topicType, topicName)
+				skippedCount++
 			}
 		}
 	}
