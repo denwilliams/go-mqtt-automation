@@ -21,6 +21,7 @@ type StateManager interface {
 	SaveTopicState(topicName string, value interface{}) error
 	LoadTopicState(topicName string) (interface{}, error)
 	LoadTopicConfig(topicName string) (interface{}, error)
+	LoadAllTopicConfigs() ([]interface{}, error)
 	RestoreTopicStates() (map[string]interface{}, error)
 }
 
@@ -641,7 +642,25 @@ func (m *Manager) RestoreTopicStatesFromDatabase() error {
 		return fmt.Errorf("failed to restore topic states: %w", err)
 	}
 
+	// Load topic configs to know which topics are internal/system vs external
+	topicConfigs, err := m.stateManager.LoadAllTopicConfigs()
+	if err != nil {
+		return fmt.Errorf("failed to load topic configs: %w", err)
+	}
+
+	// Build a map of configured topic names
+	configuredTopics := make(map[string]bool)
+	for _, config := range topicConfigs {
+		switch cfg := config.(type) {
+		case InternalTopicConfig:
+			configuredTopics[cfg.Name] = true
+		case SystemTopicConfig:
+			configuredTopics[cfg.Name] = true
+		}
+	}
+
 	restoredCount := 0
+	skippedCount := 0
 	for topicName, value := range savedStates {
 		// Check if topic exists in memory
 		topic := m.GetTopic(topicName)
@@ -662,16 +681,23 @@ func (m *Manager) RestoreTopicStatesFromDatabase() error {
 				restoredCount++
 			}
 		} else {
-			// Topic not in memory - this is likely an external topic that hasn't been seen yet
-			// Create it as an external topic with the restored value
-			externalTopic := m.AddExternalTopic(topicName)
-			externalTopic.config.LastValue = value
-			externalTopic.config.LastUpdated = time.Now()
-			m.logger.Printf("Restored external topic: %s", topicName)
-			restoredCount++
+			// Topic not in memory
+			// Only create as external if it's NOT a configured internal/system topic
+			if !configuredTopics[topicName] {
+				// This is truly an external topic that hasn't been seen yet
+				externalTopic := m.AddExternalTopic(topicName)
+				externalTopic.config.LastValue = value
+				externalTopic.config.LastUpdated = time.Now()
+				m.logger.Printf("Restored external topic: %s", topicName)
+				restoredCount++
+			} else {
+				// This is a configured topic that failed to load - skip it
+				m.logger.Printf("Skipping state restore for missing configured topic: %s", topicName)
+				skippedCount++
+			}
 		}
 	}
 
-	m.logger.Printf("Restored state for %d topics", restoredCount)
+	m.logger.Printf("Restored state for %d topics (%d skipped)", restoredCount, skippedCount)
 	return nil
 }
