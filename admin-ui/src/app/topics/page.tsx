@@ -249,7 +249,7 @@ function TopicsContent() {
             Object.keys(parsedParameters).length > 0
               ? parsedParameters
               : undefined,
-          tags: parsedTags.length > 0 ? parsedTags : undefined,
+          tags: parsedTags,
         }),
       });
 
