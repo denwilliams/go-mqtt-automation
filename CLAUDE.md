@@ -2,6 +2,27 @@
 
 This file contains important development notes and patterns for future Claude sessions working on this MQTT Home Automation project.
 
+## State Key Naming Convention
+
+**IMPORTANT**: The state database uses type-specific prefixes to distinguish topic types:
+
+- `external:topic/name` - MQTT sensor topics from external sources
+- `internal:topic/name` - Configured topics with strategies
+- `child:topic/name` - Derived/subtopics created by `context.emit()`
+- `system:topic/name` - System timers and schedulers
+- `topic:topic/name` - Legacy format (fallback for unknown types)
+
+**Why this matters:**
+- Child topics MUST be identified correctly or they'll freeze on MQTT message receipt
+- The prefix is determined in `SaveTopicState()` and parsed in `RestoreTopicStatesFromDatabase()`
+- Migration script: `scripts/migrate-state-keys.go` converts old `topic:` keys to new format
+
+**Key implementation details:**
+- `pkg/topics/manager.go:SaveTopicState()` - Determines topic type and adds prefix
+- `pkg/topics/manager.go:RestoreTopicStatesFromDatabase()` - Parses prefixes and creates topics
+- `pkg/topics/manager.go:createOrUpdateDerivedTopic()` - Uses direct state manager calls to avoid deadlock
+- See `STATE_KEY_MIGRATION.md` for full documentation
+
 ## Database Migrations
 
 ### Template-Based Migration System
