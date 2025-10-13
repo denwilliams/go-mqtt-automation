@@ -211,6 +211,13 @@ func (a *Application) loadTopics() error {
 	}
 
 	a.logger.Printf("Loaded %d topic configurations", len(topicConfigs))
+
+	// Restore topic states from database (including external topics)
+	if err := a.topicManager.RestoreTopicStatesFromDatabase(); err != nil {
+		a.logger.Printf("Warning: Failed to restore topic states: %v", err)
+		// Don't fail startup if state restoration fails
+	}
+
 	return nil
 }
 

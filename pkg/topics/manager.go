@@ -21,6 +21,7 @@ type StateManager interface {
 	SaveTopicState(topicName string, value interface{}) error
 	LoadTopicState(topicName string) (interface{}, error)
 	LoadTopicConfig(topicName string) (interface{}, error)
+	RestoreTopicStates() (map[string]interface{}, error)
 }
 
 type Manager struct {
@@ -623,4 +624,54 @@ func (m *Manager) GetExternalTopics() []BaseTopicConfig {
 	}
 
 	return externalTopics
+}
+
+// RestoreTopicStatesFromDatabase restores last known values for all topics from the state database
+// This should be called after loading topic configurations but before processing any events
+func (m *Manager) RestoreTopicStatesFromDatabase() error {
+	if m.stateManager == nil {
+		return nil
+	}
+
+	m.logger.Println("Restoring topic states from database...")
+
+	// Get all saved topic states from the database
+	savedStates, err := m.stateManager.RestoreTopicStates()
+	if err != nil {
+		return fmt.Errorf("failed to restore topic states: %w", err)
+	}
+
+	restoredCount := 0
+	for topicName, value := range savedStates {
+		// Check if topic exists in memory
+		topic := m.GetTopic(topicName)
+		if topic != nil {
+			// Update the topic's last value without triggering events
+			switch t := topic.(type) {
+			case *ExternalTopic:
+				t.config.LastValue = value
+				t.config.LastUpdated = time.Now()
+				restoredCount++
+			case *InternalTopic:
+				t.config.LastValue = value
+				t.config.LastUpdated = time.Now()
+				restoredCount++
+			case *SystemTopic:
+				t.config.LastValue = value
+				t.config.LastUpdated = time.Now()
+				restoredCount++
+			}
+		} else {
+			// Topic not in memory - this is likely an external topic that hasn't been seen yet
+			// Create it as an external topic with the restored value
+			externalTopic := m.AddExternalTopic(topicName)
+			externalTopic.config.LastValue = value
+			externalTopic.config.LastUpdated = time.Now()
+			m.logger.Printf("Restored external topic: %s", topicName)
+			restoredCount++
+		}
+	}
+
+	m.logger.Printf("Restored state for %d topics", restoredCount)
+	return nil
 }

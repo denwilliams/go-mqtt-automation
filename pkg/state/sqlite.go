@@ -554,6 +554,38 @@ func (s *SQLiteDatabase) LoadState(key string) (interface{}, error) {
 	return value, nil
 }
 
+func (s *SQLiteDatabase) LoadAllStates() (map[string]interface{}, error) {
+	query := "SELECT key, value FROM state"
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query states: %w", err)
+	}
+	defer rows.Close()
+
+	states := make(map[string]interface{})
+	for rows.Next() {
+		var key, valueJSON string
+		if err := rows.Scan(&key, &valueJSON); err != nil {
+			return nil, fmt.Errorf("failed to scan state row: %w", err)
+		}
+
+		var value interface{}
+		if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
+			// Skip invalid JSON
+			continue
+		}
+
+		states[key] = value
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating state rows: %w", err)
+	}
+
+	return states, nil
+}
+
 func (s *SQLiteDatabase) DeleteState(key string) error {
 	_, err := s.db.Exec("DELETE FROM state WHERE key = ?", key)
 	return err

@@ -23,6 +23,7 @@ type Database interface {
 	// State
 	SaveState(key string, value interface{}) error
 	LoadState(key string) (interface{}, error)
+	LoadAllStates() (map[string]interface{}, error)
 	DeleteState(key string) error
 
 	// Execution logs

@@ -192,14 +192,25 @@ func (m *Manager) LoadExecutionLogs(topicName string, limit int) ([]ExecutionLog
 func (m *Manager) RestoreTopicStates() (map[string]interface{}, error) {
 	m.logger.Println("Restoring topic states from database...")
 
-	// This is a simplified approach - in a real system you might want to
-	// implement a more sophisticated state recovery mechanism
+	// Load all states with "topic:" prefix from the state table
 	states := make(map[string]interface{})
 
-	// For now, we'll just return an empty map as individual topics
-	// will load their states as needed
+	// We need to implement a method to get all states
+	// For now, let's use the database directly
+	allStates, err := m.db.LoadAllStates()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load states: %w", err)
+	}
 
-	m.logger.Println("Topic states restored")
+	// Filter for topic states (keys starting with "topic:")
+	for key, value := range allStates {
+		if len(key) > 6 && key[:6] == "topic:" {
+			topicName := key[6:] // Remove "topic:" prefix
+			states[topicName] = value
+		}
+	}
+
+	m.logger.Printf("Restored %d topic states from database", len(states))
 	return states, nil
 }
 
